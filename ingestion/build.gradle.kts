@@ -8,8 +8,13 @@ dependencies {
     // Batch
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-
     runtimeOnly("org.postgresql:postgresql")
+
+    // REST
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
+    // Mock Server
+    implementation("org.springframework.cloud:spring-cloud-starter-contract-stub-runner")
 
     // Development
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -17,6 +22,14 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.junit.platform:junit-platform-launcher")
+}
+
+extra["springCloudVersion"] = "2025.1.2"
+
+dependencyManagement {
+  imports {
+    mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+  }
 }
 
 tasks.withType<Test> {
