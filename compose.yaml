@@ -1,0 +1,15 @@
+services:
+  postgres:
+    # image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+    image: docker.io/postgres:18
+    environment:
+      POSTGRES_USER: postgres-local
+      POSTGRES_PASSWORD: postgres-local
+      POSTGRES_DB: dataflow
+    ports:
+      - 5432:5432
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+volumes:
+  pgdata:
