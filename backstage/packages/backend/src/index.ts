@@ -69,4 +69,7 @@ backend.add(import('@backstage/plugin-signals-backend'));
 // mcp actions plugin
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
+// Spring Batch Dashboard
+backend.add(import('@jikwan/backstage-plugin-spring-batch-dashboard-backend'));
+
 backend.start();

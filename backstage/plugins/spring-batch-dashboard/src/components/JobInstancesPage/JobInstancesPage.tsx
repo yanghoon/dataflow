@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Content,
   Header,
@@ -6,7 +5,8 @@ import {
   Page,
   Progress,
 } from '@backstage/core-components';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
+import { retryHistoryRouteRef } from '../../routes';
 import {
   Box,
   FormControl,
@@ -38,6 +38,7 @@ import {
 export const JobInstancesPage = () => {
   const navigate = useNavigate();
   const api = useApi(springBatchApiRef);
+  const historyLink = useRouteRef(retryHistoryRouteRef);
 
   const { environment, setEnvironment } = useEnvironmentSelector();
 
@@ -94,8 +95,9 @@ export const JobInstancesPage = () => {
     const bootVersionParam = bootVersion
       ? `&bootVersion=${encodeURIComponent(bootVersion)}`
       : '';
+    const link = historyLink({ instanceId: instanceId.toString() });
     navigate(
-      `/spring-batch/instances/${instanceId}/history?environment=${environment}${bootVersionParam}`,
+      `${link}?environment=${environment}${bootVersionParam}`,
     );
   };
 

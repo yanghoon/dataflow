@@ -1,8 +1,8 @@
-import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
 import { springBatchApiRef } from '../../api';
+import { executionDetailRouteRef } from '../../routes';
 import {
   Content,
   Header,
@@ -71,6 +71,7 @@ export const RetryHistoryPage = () => {
   const { instanceId } = useParams<{ instanceId: string }>();
   const api = useApi(springBatchApiRef);
   const navigate = useNavigate();
+  const detailLink = useRouteRef(executionDetailRouteRef);
   const [searchParams] = useSearchParams();
 
   const environment = (searchParams.get('environment') as Environment) || 'dev';
@@ -109,8 +110,9 @@ export const RetryHistoryPage = () => {
     const bootVersionParam = execution.bootVersion
       ? `&bootVersion=${encodeURIComponent(execution.bootVersion)}`
       : '';
+    const link = detailLink({ id: execution.jobExecutionId.toString() });
     navigate(
-      `/spring-batch/executions/${execution.jobExecutionId}?environment=${environment}${bootVersionParam}`,
+      `${link}?environment=${environment}${bootVersionParam}`,
     );
   };
 

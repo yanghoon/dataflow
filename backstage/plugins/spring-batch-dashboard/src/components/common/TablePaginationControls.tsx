@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, TablePagination } from '@mui/material';
 import { PAGE_SIZE_OPTIONS, SELECT_MENU_PROPS } from '../../utils';
 

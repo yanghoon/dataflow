@@ -1,4 +1,3 @@
-import React from 'react';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -24,8 +23,9 @@ import {
   Header,
   Content,
 } from '@backstage/core-components';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
 import { springBatchApiRef } from '../../api';
+import { retryHistoryRouteRef, stepDetailRouteRef } from '../../routes';
 import type { JobExecution, Environment } from '../../types';
 import { formatDateWithTimezone } from '../../utils/formatters';
 
@@ -34,6 +34,8 @@ export const ExecutionDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const api = useApi(springBatchApiRef);
+  const historyLink = useRouteRef(retryHistoryRouteRef);
+  const stepLink = useRouteRef(stepDetailRouteRef);
 
   const environment = (searchParams.get('environment') as Environment) || 'dev';
   const bootVersion = searchParams.get('bootVersion') as
@@ -182,8 +184,9 @@ export const ExecutionDetail = () => {
               const bootVersionParam = execution.bootVersion
                 ? `&bootVersion=${encodeURIComponent(execution.bootVersion)}`
                 : '';
+              const link = historyLink({ instanceId: execution.jobInstanceId.toString() });
               navigate(
-                `/spring-batch/instances/${execution.jobInstanceId}/history?environment=${environment}${bootVersionParam}`,
+                `${link}?environment=${environment}${bootVersionParam}`,
               );
             }}
           >
@@ -425,8 +428,9 @@ export const ExecutionDetail = () => {
                             const bootVersionParam = step.bootVersion
                               ? `&bootVersion=${encodeURIComponent(step.bootVersion)}`
                               : '';
+                            const link = stepLink({ stepId: step.stepExecutionId.toString() });
                             navigate(
-                              `/spring-batch/steps/${step.stepExecutionId}?environment=${environment}${bootVersionParam}`,
+                              `${link}?environment=${environment}${bootVersionParam}`,
                             );
                           }}
                         >

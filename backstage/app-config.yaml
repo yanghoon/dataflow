@@ -143,3 +143,22 @@ permission:
 mcpActions:
   name: 'My Company Backstage' # defaults to "backstage"
   description: 'Tools for managing your software catalog, creating new services from templates, and exploring your developer portal' # optional
+
+springBatch:
+  # Default environment (optional, defaults to first environment if not set)
+  defaultEnvironment: dev
+
+  # Multi-environment database configurations
+  databases:
+    # Development environment
+    dev:
+      client: pg
+      connection:
+        host: ${DEV_SPRING_BATCH_DB_HOST}
+        port: ${DEV_SPRING_BATCH_DB_PORT}
+        user: ${DEV_SPRING_BATCH_DB_USER}
+        password: ${DEV_SPRING_BATCH_DB_PASSWORD}
+        database: ${DEV_SPRING_BATCH_DB_DATABASE}
+      pool:
+        min: 2
+        max: 10

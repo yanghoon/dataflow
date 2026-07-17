@@ -26,3 +26,4 @@ export type {
   DailyStatistics,
   DailyJobSummary,
 } from './types';
+export { default as springBatchFrontendPlugin } from './frontendPlugin';

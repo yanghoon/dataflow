@@ -7332,6 +7332,7 @@ __metadata:
     "@backstage/core-components": "npm:^0.16.3"
     "@backstage/core-plugin-api": "npm:^1.9.4"
     "@backstage/dev-utils": "npm:^1.1.9"
+    "@backstage/frontend-plugin-api": "npm:^0.17.3"
     "@backstage/test-utils": "npm:^1.6.3"
     "@mui/icons-material": "npm:^6.1.11"
     "@mui/lab": "npm:^6.0.0-beta.17"

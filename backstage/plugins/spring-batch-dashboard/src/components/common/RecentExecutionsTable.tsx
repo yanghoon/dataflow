@@ -1,6 +1,6 @@
-import React from 'react';
 import { InfoCard } from '@backstage/core-components';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
+import { executionDetailRouteRef } from '../../routes';
 import { Box, Grid, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -37,6 +37,7 @@ export const RecentExecutionsTable = ({
 }: RecentExecutionsTableProps) => {
   const navigate = useNavigate();
   const api = useApi(springBatchApiRef);
+  const detailLink = useRouteRef(executionDetailRouteRef);
 
   const [loading, setLoading] = useState(true);
   const [allExecutions, setAllExecutions] = useState<JobExecution[]>([]);
@@ -105,8 +106,9 @@ export const RecentExecutionsTable = ({
     const bootVersionParam = execution.bootVersion
       ? `&bootVersion=${encodeURIComponent(execution.bootVersion)}`
       : '';
+    const link = detailLink({ id: execution.jobExecutionId.toString() });
     navigate(
-      `/spring-batch/executions/${execution.jobExecutionId}?environment=${environment}${bootVersionParam}`,
+      `${link}?environment=${environment}${bootVersionParam}`,
     );
   };
 

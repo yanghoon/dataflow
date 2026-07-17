@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Content,
   Header,
@@ -6,7 +5,7 @@ import {
   Page,
   Progress,
 } from '@backstage/core-components';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
 import {
   Alert,
   Box,
@@ -21,6 +20,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { springBatchApiRef } from '../../api';
+import { retryHistoryRouteRef } from '../../routes';
 import { useDateRange, useEnvironmentSelector } from '../../hooks';
 import type { JobExecution } from '../../types';
 import { formatDuration } from '../../utils';
@@ -36,6 +36,7 @@ import {
 export const SpringBatchPage = () => {
   const navigate = useNavigate();
   const api = useApi(springBatchApiRef);
+  const historyLink = useRouteRef(retryHistoryRouteRef);
 
   const { environment, setEnvironment } = useEnvironmentSelector();
   const {
@@ -381,8 +382,9 @@ export const SpringBatchPage = () => {
                           const bootVersionParam = summary.bootVersion
                             ? `&bootVersion=${encodeURIComponent(summary.bootVersion)}`
                             : '';
+                          const link = historyLink({ instanceId: summary.lastJobInstanceId.toString() });
                           navigate(
-                            `/spring-batch/instances/${summary.lastJobInstanceId}/history?environment=${environment}${bootVersionParam}`,
+                            `${link}?environment=${environment}${bootVersionParam}`,
                           );
                         }
                       }}

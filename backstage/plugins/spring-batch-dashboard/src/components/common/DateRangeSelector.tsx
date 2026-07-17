@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Button, ButtonGroup, Grid, TextField } from '@mui/material';
 
 export type QuickDateRange = 'today' | 'yesterday' | 'last7days' | 'last30days';

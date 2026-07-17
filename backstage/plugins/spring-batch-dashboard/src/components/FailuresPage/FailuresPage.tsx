@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Content,
   Header,
@@ -6,7 +5,8 @@ import {
   Page,
   Progress,
 } from '@backstage/core-components';
-import { useApi } from '@backstage/core-plugin-api';
+import { useApi, useRouteRef } from '@backstage/core-plugin-api';
+import { executionDetailRouteRef } from '../../routes';
 import {
   Box,
   Chip,
@@ -45,6 +45,7 @@ interface FailureGroup {
 export const FailuresPage = () => {
   const api = useApi(springBatchApiRef);
   const navigate = useNavigate();
+  const detailLink = useRouteRef(executionDetailRouteRef);
 
   const { environment, setEnvironment } = useEnvironmentSelector();
   const {
@@ -104,8 +105,9 @@ export const FailuresPage = () => {
     const bootVersionParam = execution.bootVersion
       ? `&bootVersion=${encodeURIComponent(execution.bootVersion)}`
       : '';
+    const link = detailLink({ id: execution.jobExecutionId.toString() });
     navigate(
-      `/spring-batch/executions/${execution.jobExecutionId}?environment=${environment}${bootVersionParam}`,
+      `${link}?environment=${environment}${bootVersionParam}`,
     );
   };
 
