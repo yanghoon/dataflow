@@ -7,7 +7,7 @@ plugins {
 dependencies {
     // Batch
     implementation("org.springframework.boot:spring-boot-starter-batch")
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
     runtimeOnly("org.postgresql:postgresql")
 
     // REST

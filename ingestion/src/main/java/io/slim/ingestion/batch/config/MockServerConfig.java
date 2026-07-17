@@ -10,10 +10,10 @@ import org.springframework.context.annotation.Configuration;
 import com.github.tomakehurst.wiremock.WireMockServer;
 
 @Configuration
-public class MockServer {
+public class MockServerConfig {
 
-    @Bean(initMethod = "start", destroyMethod = "stop")
     // @Profile("dev-wiremock")
+    @Bean(initMethod = "start", destroyMethod = "stop")
     public WireMockServer wireMockServer() {
         WireMockServer wireMockServer = new WireMockServer(9090);
         

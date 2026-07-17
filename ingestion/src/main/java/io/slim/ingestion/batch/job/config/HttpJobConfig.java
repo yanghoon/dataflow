@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.config;
+package io.slim.ingestion.batch.job.config;
 
 
 import org.springframework.batch.core.job.Job;
@@ -10,13 +10,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import io.slim.ingestion.batch.step.HttpTasklet;
+import io.slim.ingestion.batch.job.step.HttpTasklet;
 
 @Configuration
 public class HttpJobConfig {
 
     @Bean
-    @Qualifier("httpStep")
     Step httpStep(JobRepository jobRepository) {
         return new StepBuilder("httpStep", jobRepository)
                 .tasklet(new HttpTasklet())

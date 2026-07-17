@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.config;
+package io.slim.ingestion.batch.job.config;
 
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
