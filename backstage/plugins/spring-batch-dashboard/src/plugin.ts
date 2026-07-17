@@ -87,3 +87,11 @@ export const SpringBatchStepDetail = springBatchPlugin.provide(
     mountPoint: rootRouteRef,
   }),
 );
+
+export const SpringBatchExecuteJobPage = springBatchPlugin.provide(
+  createRoutableExtension({
+    name: 'SpringBatchExecuteJobPage',
+    component: () => import('./components/ExecuteJobPage').then(m => m.ExecuteJobPage),
+    mountPoint: rootRouteRef,
+  }),
+);

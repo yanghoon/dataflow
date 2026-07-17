@@ -288,4 +288,33 @@ export class SpringBatchClient {
 
     return await response.json();
   }
+
+  async executeJob(
+    jobName: string,
+    jobParams: Record<string, string>,
+    environment?: Environment,
+  ): Promise<any> {
+    const baseUrl = await this.getBaseUrl();
+    const params = new URLSearchParams();
+    if (environment) params.append('environment', environment);
+
+    const url = `${baseUrl}/executions${params.toString() ? `?${params.toString()}` : ''}`;
+    
+    const response = await this.fetchApi.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jobName,
+        jobParams,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to execute job: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
 }

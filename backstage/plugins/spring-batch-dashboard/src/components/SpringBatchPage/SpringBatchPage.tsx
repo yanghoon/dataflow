@@ -16,11 +16,13 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Button,
 } from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { springBatchApiRef } from '../../api';
-import { retryHistoryRouteRef } from '../../routes';
+import { retryHistoryRouteRef, executeJobRouteRef } from '../../routes';
 import { useDateRange, useEnvironmentSelector } from '../../hooks';
 import type { JobExecution } from '../../types';
 import { formatDuration } from '../../utils';
@@ -37,6 +39,7 @@ export const SpringBatchPage = () => {
   const navigate = useNavigate();
   const api = useApi(springBatchApiRef);
   const historyLink = useRouteRef(retryHistoryRouteRef);
+  const executeJobLink = useRouteRef(executeJobRouteRef);
 
   const { environment, setEnvironment } = useEnvironmentSelector();
   const {
@@ -247,7 +250,22 @@ export const SpringBatchPage = () => {
             borderRadius: 1,
           }}
         >
-          <InfoCard title={`Job Summary (${jobSummaries.length})`}>
+          <InfoCard 
+            title={
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Box>{`Job Summary (${jobSummaries.length})`}</Box>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<PlayArrowIcon />}
+                  onClick={() => navigate(`${executeJobLink()}?environment=${environment}`)}
+                >
+                  Execute Job
+                </Button>
+              </Box>
+            }
+          >
             {jobSummaries.length === 0 ? (
               <Typography>No jobs executed on this date.</Typography>
             ) : (

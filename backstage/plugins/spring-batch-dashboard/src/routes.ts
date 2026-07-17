@@ -39,3 +39,9 @@ export const stepDetailRouteRef = createSubRouteRef({
   parent: rootRouteRef,
   path: '/steps/:stepId',
 });
+
+export const executeJobRouteRef = createSubRouteRef({
+  id: 'spring-batch:execute-job',
+  parent: rootRouteRef,
+  path: '/execute',
+});

@@ -102,6 +102,17 @@ export const springBatchStepDetailPageExtension = PageBlueprint.make({
   },
 });
 
+export const springBatchExecuteJobPageExtension = PageBlueprint.make({
+  name: 'spring-batch-execute-job',
+  params: {
+    path: '/spring-batch/execute',
+    loader: async () => {
+      const { ExecuteJobPage } = await import('./components/ExecuteJobPage');
+      return <ExecuteJobPage />;
+    },
+  },
+});
+
 export default createFrontendPlugin({
   pluginId: 'spring-batch-dashboard',
   extensions: [
@@ -113,5 +124,6 @@ export default createFrontendPlugin({
     springBatchRetryHistoryPageExtension,
     springBatchExecutionDetailPageExtension,
     springBatchStepDetailPageExtension,
+    springBatchExecuteJobPageExtension,
   ],
 });

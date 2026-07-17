@@ -117,6 +117,34 @@ export async function createRouter(
     }, 'Failed to get job executions'),
   );
 
+  router.post(
+    '/executions',
+    asyncHandler(async (req, res) => {
+      const { jobName, jobParams } = req.body;
+      const environment = validateEnvironment(
+        req.query.environment,
+        availableEnvironments,
+        defaultEnvironment,
+      );
+      
+      if (!jobName) {
+        throw new ValidationError('jobName is required');
+      }
+
+      logger.info(
+        `Executing job ${jobName} with params ${JSON.stringify(jobParams)} in environment ${environment}`,
+      );
+
+      // TODO: Implement actual job execution logic here
+      // For now, return a mock success response
+      res.status(202).json({
+        status: 'ACCEPTED',
+        jobName,
+        message: 'Job execution request received',
+      });
+    }, 'Failed to trigger job execution'),
+  );
+
   router.get(
     '/executions/:id',
     asyncHandler(async (req, res) => {
