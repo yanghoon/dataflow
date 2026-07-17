@@ -1,0 +1,44 @@
+@startuml
+skinparam rectangle {
+    BackgroundColor<<Command>> LightBlue
+    BackgroundColor<<Event>> Orange
+    BackgroundColor<<Policy>> Lavender
+    BackgroundColor<<Aggregate>> LightYellow
+}
+
+' Actors
+actor "Admin" as admin_adhoc
+actor "Admin" as admin_scheduler
+
+' Events
+rectangle "BatchJobExecuted" <<Event>> as adhoc_batch_launched
+rectangle "BatchJobScheduled" <<Event>> as launched_batch_registered
+rectangle "BatchJobExecuted" <<Event>> as scheduled_batch_launched
+
+' Policy
+rectangle "Trigger Scheduled Batch" <<Policy>> as batch_schedule_policy
+
+' Command
+rectangle "ExecuteBatchJob" <<Command>> as launch_batch_job
+rectangle "ScheduleBatchJob" <<Command>> as register_batch_job
+
+' Aggregate
+rectangle "BatchJobExecution" <<Aggregate>> as batch_job_execution
+rectangle "BatchJobSchedule" <<Aggregate>> as batch_job_schedule
+
+' Scenario #1 - Test Batch Job using Ad-hoc Launch
+admin_adhoc -> launch_batch_job : Ad-Hoc
+launch_batch_job -> batch_job_execution
+batch_job_execution -> adhoc_batch_launched
+
+' Scenario #2 - Schedule Batch Job
+admin_scheduler -> register_batch_job : Schedule
+register_batch_job -> batch_job_schedule
+batch_job_schedule -> launched_batch_registered
+launched_batch_registered -> batch_schedule_policy
+batch_schedule_policy -> scheduled_batch_launched
+
+' Alignment
+admin_adhoc -[hidden]-> admin_scheduler
+
+@enduml
