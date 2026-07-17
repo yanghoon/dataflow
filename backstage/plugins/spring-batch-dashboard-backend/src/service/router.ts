@@ -105,7 +105,7 @@ export async function createRouter(
       // Extract bootVersion from query params
       const bootVersionParam = req.query.bootVersion as string | undefined;
       const bootVersion =
-        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4'
+        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4' || bootVersionParam === 'Default'
           ? bootVersionParam
           : undefined;
 
@@ -131,7 +131,7 @@ export async function createRouter(
       // Extract bootVersion from query params
       const bootVersionParam = req.query.bootVersion as string | undefined;
       const bootVersion =
-        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4'
+        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4' || bootVersionParam === 'Default'
           ? bootVersionParam
           : undefined;
 
@@ -163,7 +163,7 @@ export async function createRouter(
       // Extract bootVersion from query params
       const bootVersionParam = req.query.bootVersion as string | undefined;
       const bootVersion =
-        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4'
+        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4' || bootVersionParam === 'Default'
           ? bootVersionParam
           : undefined;
 
@@ -301,7 +301,7 @@ export async function createRouter(
       const jobInstanceId = validatePositiveInt(req.params.id, 'id');
       const bootVersionParam = req.query.bootVersion as string | undefined;
       const bootVersion =
-        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4'
+        bootVersionParam === 'Boot3' || bootVersionParam === 'Boot4' || bootVersionParam === 'Default'
           ? bootVersionParam
           : undefined;
       const executions = await batchService.getJobInstanceExecutions(

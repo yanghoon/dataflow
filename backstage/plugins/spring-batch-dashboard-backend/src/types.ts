@@ -13,7 +13,7 @@ export interface JobInstanceWithStats {
   executionCount: number;
   lastExecutionStatus: JobStatus | null;
   lastExecutionTime: Date | null;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
 }
 
 export type JobStatus =
@@ -71,7 +71,7 @@ export interface StepExecution {
   exitCode: string | null;
   exitMessage: string | null;
   lastUpdated: Date;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
 }
 
 export interface JobStatistics {
@@ -114,7 +114,7 @@ export interface DailyJobSummary {
   avgDurationMs: number | null;
   lastStatus: JobStatus;
   lastExecutionTime: Date | null;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
   lastJobInstanceId?: number | null;
 }
 

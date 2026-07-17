@@ -22,12 +22,12 @@ export class BatchRepository {
 
   async getJobExecutions(
     query: JobExecutionQuery = {},
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     const { limit = 50, offset = 0, status, jobName, from, to } = query;
 
     if (bootVersion) {
-      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : 'boot4_';
+      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : bootVersion === 'Boot4' ? 'boot4_' : '';
       let q = this.knex(`${tablePrefix}batch_job_execution as e`);
       q = this.helpers.joinJobInstance(q, tablePrefix);
       q = q.select(
@@ -73,15 +73,15 @@ export class BatchRepository {
 
   async getJobExecutionDetail(
     executionId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution | null> {
     let execution: any;
-    let tablePrefix: string;
-    let resolvedBootVersion: string;
+    let tablePrefix: string = '';
+    let resolvedBootVersion: string = 'Default';
 
     // If bootVersion is specified, query only that table
     if (bootVersion) {
-      tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : 'boot4_';
+      tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : bootVersion === 'Boot4' ? 'boot4_' : '';
       resolvedBootVersion = bootVersion;
 
       execution = await this.knex(`${tablePrefix}batch_job_execution as e`)
@@ -100,22 +100,28 @@ export class BatchRepository {
         return null;
       }
     } else {
-      // Try Boot 3 first
-      execution = await this.knex('boot3_batch_job_execution as e')
-        .join(
-          'boot3_batch_job_instance as i',
-          'e.job_instance_id',
-          'i.job_instance_id',
-        )
-        .select(QueryConstants.getJobExecutionColumns(this.knex, 'Boot3'))
-        .where('e.job_execution_id', executionId)
-        .first();
+      const tables = await this.helpers.detectTables();
 
-      tablePrefix = 'boot3_';
-      resolvedBootVersion = 'Boot3';
+      // Try Boot 3 first
+      if (tables.hasBoot3) {
+        execution = await this.knex('boot3_batch_job_execution as e')
+          .join(
+            'boot3_batch_job_instance as i',
+            'e.job_instance_id',
+            'i.job_instance_id',
+          )
+          .select(QueryConstants.getJobExecutionColumns(this.knex, 'Boot3'))
+          .where('e.job_execution_id', executionId)
+          .first();
+
+        if (execution) {
+          tablePrefix = 'boot3_';
+          resolvedBootVersion = 'Boot3';
+        }
+      }
 
       // If not found, try Boot 4
-      if (!execution) {
+      if (!execution && tables.hasBoot4) {
         execution = await this.knex('boot4_batch_job_execution as e')
           .join(
             'boot4_batch_job_instance as i',
@@ -126,8 +132,28 @@ export class BatchRepository {
           .where('e.job_execution_id', executionId)
           .first();
 
-        tablePrefix = 'boot4_';
-        resolvedBootVersion = 'Boot4';
+        if (execution) {
+          tablePrefix = 'boot4_';
+          resolvedBootVersion = 'Boot4';
+        }
+      }
+
+      // If still not found, try Default
+      if (!execution && tables.hasDefault) {
+        execution = await this.knex('batch_job_execution as e')
+          .join(
+            'batch_job_instance as i',
+            'e.job_instance_id',
+            'i.job_instance_id',
+          )
+          .select(QueryConstants.getJobExecutionColumns(this.knex, 'Default'))
+          .where('e.job_execution_id', executionId)
+          .first();
+
+        if (execution) {
+          tablePrefix = '';
+          resolvedBootVersion = 'Default';
+        }
       }
 
       if (!execution) {
@@ -166,11 +192,11 @@ export class BatchRepository {
 
   async getStepExecutionDetail(
     stepExecutionId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<any | null> {
     // If bootVersion is specified, query only that table
     if (bootVersion) {
-      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : 'boot4_';
+      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : bootVersion === 'Boot4' ? 'boot4_' : '';
       const step = await this.knex(`${tablePrefix}batch_step_execution`)
         .select(QueryConstants.getStepExecutionColumns(this.knex, bootVersion))
         .where('step_execution_id', stepExecutionId)
@@ -179,22 +205,35 @@ export class BatchRepository {
       return step || null;
     }
 
-    // Otherwise, try Boot 3 first, then Boot 4
-    let step = await this.knex('boot3_batch_step_execution')
-      .select(QueryConstants.getStepExecutionColumns(this.knex, 'Boot3'))
-      .where('step_execution_id', stepExecutionId)
-      .first();
+    // Otherwise, try Boot 3 first, then Boot 4, then Default
+    const tables = await this.helpers.detectTables();
+    let step = null;
 
-    if (step) {
-      return step;
+    if (tables.hasBoot3) {
+      step = await this.knex('boot3_batch_step_execution')
+        .select(QueryConstants.getStepExecutionColumns(this.knex, 'Boot3'))
+        .where('step_execution_id', stepExecutionId)
+        .first();
+      if (step) return step;
     }
 
-    step = await this.knex('boot4_batch_step_execution')
-      .select(QueryConstants.getStepExecutionColumns(this.knex, 'Boot4'))
-      .where('step_execution_id', stepExecutionId)
-      .first();
+    if (tables.hasBoot4) {
+      step = await this.knex('boot4_batch_step_execution')
+        .select(QueryConstants.getStepExecutionColumns(this.knex, 'Boot4'))
+        .where('step_execution_id', stepExecutionId)
+        .first();
+      if (step) return step;
+    }
 
-    return step || null;
+    if (tables.hasDefault) {
+      step = await this.knex('batch_step_execution')
+        .select(QueryConstants.getStepExecutionColumns(this.knex, 'Default'))
+        .where('step_execution_id', stepExecutionId)
+        .first();
+      if (step) return step;
+    }
+
+    return null;
   }
 
   async getJobExecutionsByName(
@@ -251,82 +290,94 @@ export class BatchRepository {
   }
 
   async getJobs(): Promise<JobInstance[]> {
-    // Boot 3 jobs
-    const boot3Jobs = this.knex('boot3_batch_job_instance').select(
-      'job_instance_id as jobInstanceId',
-      'version as version',
-      'job_name as jobName',
-      'job_key as jobKey',
-    );
+    const tables = await this.helpers.detectTables();
+    const queries: any[] = [];
 
-    // Boot 4 jobs
-    const boot4Jobs = this.knex('boot4_batch_job_instance').select(
+    const selectColumns = [
       'job_instance_id as jobInstanceId',
       'version as version',
       'job_name as jobName',
       'job_key as jobKey',
-    );
+    ];
+
+    if (tables.hasBoot3) {
+      queries.push(this.knex('boot3_batch_job_instance').select(selectColumns));
+    }
+    if (tables.hasBoot4) {
+      queries.push(this.knex('boot4_batch_job_instance').select(selectColumns));
+    }
+    if (tables.hasDefault) {
+      queries.push(this.knex('batch_job_instance').select(selectColumns));
+    }
+
+    if (queries.length === 0) return [];
+
+    let combined = queries[0];
+    for (let i = 1; i < queries.length; i++) {
+      combined = combined.union([queries[i]]);
+    }
 
     return await this.knex
       .select('*')
-      .from(this.knex.raw('(?) as combined', [boot3Jobs.union([boot4Jobs])]))
+      .from(this.knex.raw('(?) as combined', [combined]))
       .distinct('jobName')
       .orderBy('jobName');
   }
 
   async getStatistics(): Promise<JobStatistics> {
-    // Query basic statistics from both versions
-    const [boot3Stats, boot4Stats] = await Promise.all([
-      this.knex('boot3_batch_job_execution')
-        .select(
-          this.knex.raw('count(*) as total_jobs'),
-          ...QueryConstants.buildStatusAggregation(this.knex),
-        )
-        .first(),
-      this.knex('boot4_batch_job_execution')
-        .select(
-          this.knex.raw('count(*) as total_jobs'),
-          ...QueryConstants.buildStatusAggregation(this.knex),
-        )
-        .first(),
-    ]);
+    const tables = await this.helpers.detectTables();
+    
+    const statsPromises: Promise<any>[] = [];
+    const breakdownPromises: Promise<any>[] = [];
 
-    // Query status breakdown from both versions
-    const [boot3StatusBreakdown, boot4StatusBreakdown] = await Promise.all([
-      this.knex('boot3_batch_job_execution')
-        .select('status')
-        .count('* as count')
-        .groupBy('status'),
-      this.knex('boot4_batch_job_execution')
-        .select('status')
-        .count('* as count')
-        .groupBy('status'),
-    ]);
+    const pushPromises = (tablePrefix: string) => {
+      statsPromises.push(
+        this.knex(`${tablePrefix}batch_job_execution`)
+          .select(
+            this.knex.raw('count(*) as total_jobs'),
+            ...QueryConstants.buildStatusAggregation(this.knex),
+          )
+          .first()
+      );
+      breakdownPromises.push(
+        this.knex(`${tablePrefix}batch_job_execution`)
+          .select('status')
+          .count('* as count')
+          .groupBy('status')
+      );
+    };
 
-    // Merge status breakdowns
+    if (tables.hasBoot3) pushPromises('boot3_');
+    if (tables.hasBoot4) pushPromises('boot4_');
+    if (tables.hasDefault) pushPromises('');
+
+    const statsResults = await Promise.all(statsPromises);
+    const breakdownResults = await Promise.all(breakdownPromises);
+
     const statusMap: Record<string, number> = {};
-    [...boot3StatusBreakdown, ...boot4StatusBreakdown].forEach((row: any) => {
+    breakdownResults.flat().forEach((row: any) => {
       if (row.status) {
-        statusMap[row.status] =
-          (statusMap[row.status] || 0) + this.helpers.parseIntSafe(row.count);
+        statusMap[row.status] = (statusMap[row.status] || 0) + this.helpers.parseIntSafe(row.count);
       }
     });
 
     const recentExecutions = await this.getJobExecutions({ limit: 10 });
 
+    let totalJobs = 0, runningJobs = 0, completedJobs = 0, failedJobs = 0;
+    statsResults.forEach(stat => {
+      if (stat) {
+        totalJobs += this.helpers.parseIntSafe(stat.total_jobs);
+        runningJobs += this.helpers.parseIntSafe(stat.running);
+        completedJobs += this.helpers.parseIntSafe(stat.completed);
+        failedJobs += this.helpers.parseIntSafe(stat.failed);
+      }
+    });
+
     return {
-      totalJobs:
-        this.helpers.parseIntSafe(boot3Stats?.total_jobs) +
-        this.helpers.parseIntSafe(boot4Stats?.total_jobs),
-      runningJobs:
-        this.helpers.parseIntSafe(boot3Stats?.running) +
-        this.helpers.parseIntSafe(boot4Stats?.running),
-      completedJobs:
-        this.helpers.parseIntSafe(boot3Stats?.completed) +
-        this.helpers.parseIntSafe(boot4Stats?.completed),
-      failedJobs:
-        this.helpers.parseIntSafe(boot3Stats?.failed) +
-        this.helpers.parseIntSafe(boot4Stats?.failed),
+      totalJobs,
+      runningJobs,
+      completedJobs,
+      failedJobs,
       statusBreakdown: statusMap,
       recentExecutions,
     };
@@ -335,67 +386,56 @@ export class BatchRepository {
   async getDailyStatistics(date: string): Promise<DailyStatistics> {
     const startOfDay = `${date} 00:00:00`;
     const endOfDay = `${date} 23:59:59.999`;
+    const tables = await this.helpers.detectTables();
+    const statsPromises: Promise<any>[] = [];
 
-    const [boot3Stats, boot4Stats] = await Promise.all([
-      this.knex('boot3_batch_job_execution')
-        .select(
-          this.knex.raw('count(*) as total_executions'),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_executions",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_executions",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running_executions",
-          ),
-          this.knex.raw('count(DISTINCT job_instance_id) as total_jobs'),
-        )
-        .where('start_time', '>=', startOfDay)
-        .where('start_time', '<=', endOfDay)
-        .first(),
-      this.knex('boot4_batch_job_execution')
-        .select(
-          this.knex.raw('count(*) as total_executions'),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_executions",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_executions",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running_executions",
-          ),
-          this.knex.raw('count(DISTINCT job_instance_id) as total_jobs'),
-        )
-        .where('start_time', '>=', startOfDay)
-        .where('start_time', '<=', endOfDay)
-        .first(),
-    ]);
+    const pushPromise = (tablePrefix: string) => {
+      statsPromises.push(
+        this.knex(`${tablePrefix}batch_job_execution`)
+          .select(
+            this.knex.raw('count(*) as total_executions'),
+            this.knex.raw("sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_executions"),
+            this.knex.raw("sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_executions"),
+            this.knex.raw("sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running_executions"),
+            this.knex.raw('count(DISTINCT job_instance_id) as total_jobs'),
+          )
+          .where('start_time', '>=', startOfDay)
+          .where('start_time', '<=', endOfDay)
+          .first()
+      );
+    };
+
+    if (tables.hasBoot3) pushPromise('boot3_');
+    if (tables.hasBoot4) pushPromise('boot4_');
+    if (tables.hasDefault) pushPromise('');
+
+    const statsResults = await Promise.all(statsPromises);
+    
+    let totalExecutions = 0, completedExecutions = 0, failedExecutions = 0, runningExecutions = 0, totalJobs = 0;
+    statsResults.forEach(stat => {
+      if (stat) {
+        totalExecutions += this.helpers.parseIntSafe(stat.total_executions);
+        completedExecutions += this.helpers.parseIntSafe(stat.completed_executions);
+        failedExecutions += this.helpers.parseIntSafe(stat.failed_executions);
+        runningExecutions += this.helpers.parseIntSafe(stat.running_executions);
+        totalJobs += this.helpers.parseIntSafe(stat.total_jobs);
+      }
+    });
 
     return {
       date,
-      totalExecutions:
-        this.helpers.parseIntSafe(boot3Stats?.total_executions) +
-        this.helpers.parseIntSafe(boot4Stats?.total_executions),
-      completedExecutions:
-        this.helpers.parseIntSafe(boot3Stats?.completed_executions) +
-        this.helpers.parseIntSafe(boot4Stats?.completed_executions),
-      failedExecutions:
-        this.helpers.parseIntSafe(boot3Stats?.failed_executions) +
-        this.helpers.parseIntSafe(boot4Stats?.failed_executions),
-      runningExecutions:
-        this.helpers.parseIntSafe(boot3Stats?.running_executions) +
-        this.helpers.parseIntSafe(boot4Stats?.running_executions),
-      totalJobs:
-        this.helpers.parseIntSafe(boot3Stats?.total_jobs) +
-        this.helpers.parseIntSafe(boot4Stats?.total_jobs),
+      totalExecutions,
+      completedExecutions,
+      failedExecutions,
+      runningExecutions,
+      totalJobs,
     };
   }
 
   async getDailyJobSummaries(date: string): Promise<DailyJobSummary[]> {
     const startOfDay = `${date} 00:00:00`;
     const endOfDay = `${date} 23:59:59.999`;
+    const tables = await this.helpers.detectTables();
 
     const buildSummaryQuery = (tablePrefix: string, bootVersion: string) => {
       return this.knex(`${tablePrefix}batch_job_execution as e`)
@@ -407,15 +447,9 @@ export class BatchRepository {
         .select(
           'i.job_name as jobName',
           this.knex.raw('count(*) as total_executions'),
-          this.knex.raw(
-            "sum(CASE WHEN e.status = 'COMPLETED' THEN 1 ELSE 0 END) as success_count",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN e.status = 'FAILED' THEN 1 ELSE 0 END) as failure_count",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN e.status = 'STARTED' THEN 1 ELSE 0 END) as running_count",
-          ),
+          this.knex.raw("sum(CASE WHEN e.status = 'COMPLETED' THEN 1 ELSE 0 END) as success_count"),
+          this.knex.raw("sum(CASE WHEN e.status = 'FAILED' THEN 1 ELSE 0 END) as failure_count"),
+          this.knex.raw("sum(CASE WHEN e.status = 'STARTED' THEN 1 ELSE 0 END) as running_count"),
           QueryConstants.buildAvgDuration(this.knex, 'avg_duration_ms'),
           this.knex.raw(`
             (SELECT e2.status FROM ${tablePrefix}batch_job_execution e2
@@ -442,48 +476,33 @@ export class BatchRepository {
         .groupBy('i.job_name');
     };
 
-    const [boot3Summaries, boot4Summaries] = await Promise.all([
-      buildSummaryQuery('boot3_', 'Boot3'),
-      buildSummaryQuery('boot4_', 'Boot4'),
-    ]);
+    const summaryPromises = [];
+    if (tables.hasBoot3) summaryPromises.push(buildSummaryQuery('boot3_', 'Boot3'));
+    if (tables.hasBoot4) summaryPromises.push(buildSummaryQuery('boot4_', 'Boot4'));
+    if (tables.hasDefault) summaryPromises.push(buildSummaryQuery('', 'Default'));
 
-    // Merge summaries by jobName with custom logic for weighted average and latest timestamp
+    const summaryResults = await Promise.all(summaryPromises);
     const summaryMap = new Map<string, any>();
 
-    [...boot3Summaries, ...boot4Summaries].forEach((row: any) => {
+    summaryResults.flat().forEach((row: any) => {
       const existing = summaryMap.get(row.jobName);
       if (!existing) {
         summaryMap.set(row.jobName, { ...row });
       } else {
-        const existingCount = this.helpers.parseIntSafe(
-          existing.total_executions,
-        );
+        const existingCount = this.helpers.parseIntSafe(existing.total_executions);
         const newCount = this.helpers.parseIntSafe(row.total_executions);
         const existingAvg = parseFloat(existing.avg_duration_ms) || 0;
         const newAvg = parseFloat(row.avg_duration_ms) || 0;
         const totalCount = existingCount + newCount;
 
         existing.total_executions = totalCount;
-        existing.success_count =
-          this.helpers.parseIntSafe(existing.success_count) +
-          this.helpers.parseIntSafe(row.success_count);
-        existing.failure_count =
-          this.helpers.parseIntSafe(existing.failure_count) +
-          this.helpers.parseIntSafe(row.failure_count);
-        existing.running_count =
-          this.helpers.parseIntSafe(existing.running_count) +
-          this.helpers.parseIntSafe(row.running_count);
-        existing.avg_duration_ms =
-          totalCount > 0
-            ? (existingAvg * existingCount + newAvg * newCount) / totalCount
-            : null;
+        existing.success_count = this.helpers.parseIntSafe(existing.success_count) + this.helpers.parseIntSafe(row.success_count);
+        existing.failure_count = this.helpers.parseIntSafe(existing.failure_count) + this.helpers.parseIntSafe(row.failure_count);
+        existing.running_count = this.helpers.parseIntSafe(existing.running_count) + this.helpers.parseIntSafe(row.running_count);
+        existing.avg_duration_ms = totalCount > 0 ? (existingAvg * existingCount + newAvg * newCount) / totalCount : null;
 
-        const existingTime = existing.last_execution_time
-          ? new Date(existing.last_execution_time)
-          : null;
-        const newTime = row.last_execution_time
-          ? new Date(row.last_execution_time)
-          : null;
+        const existingTime = existing.last_execution_time ? new Date(existing.last_execution_time) : null;
+        const newTime = row.last_execution_time ? new Date(row.last_execution_time) : null;
         if (newTime && (!existingTime || newTime > existingTime)) {
           existing.last_status = row.last_status;
           existing.last_execution_time = row.last_execution_time;
@@ -500,25 +519,21 @@ export class BatchRepository {
         successCount: this.helpers.parseIntSafe(row.success_count),
         failureCount: this.helpers.parseIntSafe(row.failure_count),
         runningCount: this.helpers.parseIntSafe(row.running_count),
-        avgDurationMs: row.avg_duration_ms
-          ? parseFloat(row.avg_duration_ms)
-          : null,
+        avgDurationMs: row.avg_duration_ms ? parseFloat(row.avg_duration_ms) : null,
         lastStatus: row.last_status,
         lastExecutionTime: row.last_execution_time,
         bootVersion: row.boot_version,
-        lastJobInstanceId: row.last_job_instance_id
-          ? this.helpers.parseIntSafe(row.last_job_instance_id)
-          : null,
+        lastJobInstanceId: row.last_job_instance_id ? this.helpers.parseIntSafe(row.last_job_instance_id) : null,
       }))
       .sort((a, b) => a.jobName.localeCompare(b.jobName));
   }
 
   async getJobInstanceExecutions(
     jobInstanceId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     if (bootVersion) {
-      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : 'boot4_';
+      const tablePrefix = bootVersion === 'Boot3' ? 'boot3_' : bootVersion === 'Boot4' ? 'boot4_' : '';
       let q = this.knex(`${tablePrefix}batch_job_execution as e`);
       q = this.helpers.joinJobInstance(q, tablePrefix);
       q = q.select(
@@ -551,62 +566,46 @@ export class BatchRepository {
   ): Promise<DailyTrendData[]> {
     const startRange = `${fromDate} 00:00:00`;
     const endRange = `${toDate} 23:59:59.999`;
+    const tables = await this.helpers.detectTables();
 
-    const [boot3TrendData, boot4TrendData] = await Promise.all([
-      this.knex('boot3_batch_job_execution')
+    const buildTrendQuery = (tablePrefix: string) => {
+      return this.knex(`${tablePrefix}batch_job_execution`)
         .select(
           this.knex.raw('DATE(start_time) as date'),
           this.knex.raw('count(*) as total'),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running",
-          ),
+          this.knex.raw("sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed"),
+          this.knex.raw("sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed"),
+          this.knex.raw("sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running"),
         )
         .where('start_time', '>=', startRange)
         .where('start_time', '<=', endRange)
         .groupByRaw('DATE(start_time)')
-        .orderByRaw('DATE(start_time)'),
-      this.knex('boot4_batch_job_execution')
-        .select(
-          this.knex.raw('DATE(start_time) as date'),
-          this.knex.raw('count(*) as total'),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed",
-          ),
-          this.knex.raw(
-            "sum(CASE WHEN status = 'STARTED' THEN 1 ELSE 0 END) as running",
-          ),
-        )
-        .where('start_time', '>=', startRange)
-        .where('start_time', '<=', endRange)
-        .groupByRaw('DATE(start_time)')
-        .orderByRaw('DATE(start_time)'),
-    ]);
+        .orderByRaw('DATE(start_time)');
+    };
 
-    const merged = this.helpers.mergeAggregatedData(
-      boot3TrendData,
-      boot4TrendData,
-      (row: any) =>
-        row.date instanceof Date
-          ? row.date.toISOString().split('T')[0]
-          : row.date,
-      ['total', 'completed', 'failed', 'running'],
-    );
+    const trendPromises = [];
+    if (tables.hasBoot3) trendPromises.push(buildTrendQuery('boot3_'));
+    if (tables.hasBoot4) trendPromises.push(buildTrendQuery('boot4_'));
+    if (tables.hasDefault) trendPromises.push(buildTrendQuery(''));
 
-    return merged
+    const trendResults = await Promise.all(trendPromises);
+
+    let mergedData: any[] = [];
+    if (trendResults.length > 0) {
+       mergedData = trendResults[0];
+       for (let i = 1; i < trendResults.length; i++) {
+         mergedData = this.helpers.mergeAggregatedData(
+           mergedData,
+           trendResults[i],
+           (row: any) => row.date instanceof Date ? row.date.toISOString().split('T')[0] : row.date,
+           ['total', 'completed', 'failed', 'running'],
+         );
+       }
+    }
+
+    return mergedData
       .map((row: any) => ({
-        date:
-          row.date instanceof Date
-            ? row.date.toISOString().split('T')[0]
-            : row.date,
+        date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : row.date,
         total: this.helpers.parseIntSafe(row.total),
         completed: this.helpers.parseIntSafe(row.completed),
         failed: this.helpers.parseIntSafe(row.failed),
@@ -616,66 +615,46 @@ export class BatchRepository {
   }
 
   async getJobInstancesWithStats(): Promise<JobInstanceWithStats[]> {
-    // Boot 3 instances with stats
-    const boot3Instances = await this.knex('boot3_batch_job_instance as i')
-      .leftJoin(
-        'boot3_batch_job_execution as e',
-        'i.job_instance_id',
-        'e.job_instance_id',
-      )
-      .select(
-        'i.job_instance_id as jobInstanceId',
-        'i.version as version',
-        'i.job_name as jobName',
-        'i.job_key as jobKey',
-        this.knex.raw('count(e.job_execution_id) as execution_count'),
-        this.knex.raw(`
-          (SELECT e2.status FROM boot3_batch_job_execution e2
-           WHERE e2.job_instance_id = i.job_instance_id
-           ORDER BY e2.create_time DESC LIMIT 1) as last_execution_status
-        `),
-        this.knex.raw(`
-          (SELECT e2.start_time FROM boot3_batch_job_execution e2
-           WHERE e2.job_instance_id = i.job_instance_id
-           ORDER BY e2.create_time DESC LIMIT 1) as last_execution_time
-        `),
-        this.knex.raw("'Boot3' as boot_version"),
-      )
-      .groupBy('i.job_instance_id', 'i.version', 'i.job_name', 'i.job_key');
+    const tables = await this.helpers.detectTables();
+    const promises = [];
 
-    // Boot 4 instances with stats
-    const boot4Instances = await this.knex('boot4_batch_job_instance as i')
-      .leftJoin(
-        'boot4_batch_job_execution as e',
-        'i.job_instance_id',
-        'e.job_instance_id',
-      )
-      .select(
-        'i.job_instance_id as jobInstanceId',
-        'i.version as version',
-        'i.job_name as jobName',
-        'i.job_key as jobKey',
-        this.knex.raw('count(e.job_execution_id) as execution_count'),
-        this.knex.raw(`
-          (SELECT e2.status FROM boot4_batch_job_execution e2
-           WHERE e2.job_instance_id = i.job_instance_id
-           ORDER BY e2.create_time DESC LIMIT 1) as last_execution_status
-        `),
-        this.knex.raw(`
-          (SELECT e2.start_time FROM boot4_batch_job_execution e2
-           WHERE e2.job_instance_id = i.job_instance_id
-           ORDER BY e2.create_time DESC LIMIT 1) as last_execution_time
-        `),
-        this.knex.raw("'Boot4' as boot_version"),
-      )
-      .groupBy('i.job_instance_id', 'i.version', 'i.job_name', 'i.job_key');
+    const buildQuery = (tablePrefix: string, bootVersion: string) => {
+      return this.knex(`${tablePrefix}batch_job_instance as i`)
+        .leftJoin(
+          `${tablePrefix}batch_job_execution as e`,
+          'i.job_instance_id',
+          'e.job_instance_id',
+        )
+        .select(
+          'i.job_instance_id as jobInstanceId',
+          'i.version as version',
+          'i.job_name as jobName',
+          'i.job_key as jobKey',
+          this.knex.raw('count(e.job_execution_id) as execution_count'),
+          this.knex.raw(`
+            (SELECT e2.status FROM ${tablePrefix}batch_job_execution e2
+             WHERE e2.job_instance_id = i.job_instance_id
+             ORDER BY e2.create_time DESC LIMIT 1) as last_execution_status
+          `),
+          this.knex.raw(`
+            (SELECT e2.start_time FROM ${tablePrefix}batch_job_execution e2
+             WHERE e2.job_instance_id = i.job_instance_id
+             ORDER BY e2.create_time DESC LIMIT 1) as last_execution_time
+          `),
+          this.knex.raw(`'${bootVersion}' as boot_version`),
+        )
+        .groupBy('i.job_instance_id', 'i.version', 'i.job_name', 'i.job_key');
+    };
 
-    // Merge and sort
-    const allInstances = [...boot3Instances, ...boot4Instances];
+    if (tables.hasBoot3) promises.push(buildQuery('boot3_', 'Boot3'));
+    if (tables.hasBoot4) promises.push(buildQuery('boot4_', 'Boot4'));
+    if (tables.hasDefault) promises.push(buildQuery('', 'Default'));
+
+    const results = await Promise.all(promises);
+    const allInstances = results.flat();
 
     return allInstances
       .map((row: any) => {
-        // PostgreSQL returns column names in lowercase unless quoted
         const jobInstanceId = row.jobinstanceid || row.jobInstanceId;
         const version = row.version;
         const jobName = row.jobname || row.jobName;
@@ -700,10 +679,7 @@ export class BatchRepository {
         if (!a.lastExecutionTime && !b.lastExecutionTime) return 0;
         if (!a.lastExecutionTime) return 1;
         if (!b.lastExecutionTime) return -1;
-        return (
-          new Date(b.lastExecutionTime).getTime() -
-          new Date(a.lastExecutionTime).getTime()
-        );
+        return new Date(b.lastExecutionTime).getTime() - new Date(a.lastExecutionTime).getTime();
       });
   }
 }

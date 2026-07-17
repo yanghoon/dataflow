@@ -33,7 +33,7 @@ export interface StepExecution {
   exitCode: string | null;
   exitMessage: string | null;
   lastUpdated: Date;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
 }
 
 export interface JobExecution {
@@ -48,7 +48,7 @@ export interface JobExecution {
   exitMessage: string | null;
   lastUpdated: Date;
   jobName?: string;
-  bootVersion?: 'Boot3' | 'Boot4'; // Spring Boot version identifier
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default'; // Spring Boot version identifier
   parameters?: JobParameter[];
   steps?: StepExecution[];
 }
@@ -68,7 +68,7 @@ export interface JobInstanceWithStats {
   executionCount: number;
   lastExecutionStatus: JobStatus;
   lastExecutionTime: Date | null;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
 }
 
 export interface JobStatistics {
@@ -107,7 +107,7 @@ export interface DailyJobSummary {
   avgDurationMs: number | null;
   lastStatus: JobStatus;
   lastExecutionTime: Date | null;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
   lastJobInstanceId?: number | null;
 }
 

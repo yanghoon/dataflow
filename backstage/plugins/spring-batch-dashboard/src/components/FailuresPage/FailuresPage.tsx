@@ -39,7 +39,7 @@ interface FailureGroup {
   failureCount: number;
   lastFailure: Date;
   lastMessage: string | null;
-  bootVersion?: 'Boot3' | 'Boot4';
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default';
 }
 
 export const FailuresPage = () => {

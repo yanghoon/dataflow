@@ -16,14 +16,14 @@ export class BatchService {
 
   async getJobExecutions(
     query: JobExecutionQuery,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     return await this.repository.getJobExecutions(query, bootVersion);
   }
 
   async getJobExecutionDetail(
     executionId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution | null> {
     return await this.repository.getJobExecutionDetail(
       executionId,
@@ -33,7 +33,7 @@ export class BatchService {
 
   async getStepExecutionDetail(
     stepExecutionId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<StepExecution | null> {
     return await this.repository.getStepExecutionDetail(
       stepExecutionId,
@@ -80,7 +80,7 @@ export class BatchService {
 
   async getJobInstanceExecutions(
     jobInstanceId: number,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     return await this.repository.getJobInstanceExecutions(
       jobInstanceId,

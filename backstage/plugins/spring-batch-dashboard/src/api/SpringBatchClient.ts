@@ -57,7 +57,7 @@ export class SpringBatchClient {
   async getExecutions(
     query?: JobExecutionQuery,
     environment?: Environment,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     const baseUrl = await this.getBaseUrl();
     const params = new URLSearchParams();
@@ -89,7 +89,7 @@ export class SpringBatchClient {
   async getExecutionDetail(
     id: number,
     environment?: Environment,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution> {
     const baseUrl = await this.getBaseUrl();
     const params = new URLSearchParams();
@@ -111,7 +111,7 @@ export class SpringBatchClient {
   async getStepDetail(
     id: number,
     environment?: Environment,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<StepExecution> {
     const baseUrl = await this.getBaseUrl();
     const params = new URLSearchParams();
@@ -270,7 +270,7 @@ export class SpringBatchClient {
   async getJobInstanceExecutions(
     jobInstanceId: number,
     environment?: Environment,
-    bootVersion?: 'Boot3' | 'Boot4',
+    bootVersion?: 'Boot3' | 'Boot4' | 'Default',
   ): Promise<JobExecution[]> {
     const baseUrl = await this.getBaseUrl();
     const params = new URLSearchParams();

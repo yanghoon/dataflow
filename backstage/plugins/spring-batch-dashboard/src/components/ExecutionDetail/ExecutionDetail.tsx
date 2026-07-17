@@ -41,6 +41,7 @@ export const ExecutionDetail = () => {
   const bootVersion = searchParams.get('bootVersion') as
     | 'Boot3'
     | 'Boot4'
+    | 'Default'
     | null;
   const [execution, setExecution] = useState<JobExecution | null>(null);
   const [loading, setLoading] = useState(true);

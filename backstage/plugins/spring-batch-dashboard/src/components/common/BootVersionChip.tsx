@@ -1,7 +1,7 @@
 import { Chip, Typography } from '@mui/material';
 
 interface BootVersionChipProps {
-  bootVersion?: 'Boot3' | 'Boot4' | null;
+  bootVersion?: 'Boot3' | 'Boot4' | 'Default' | null;
   size?: 'small' | 'medium';
 }
 

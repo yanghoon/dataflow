@@ -21,7 +21,7 @@ export class QueryBuilderHelpers {
   /**
    * Check which Spring Batch table versions exist
    */
-  private async detectTables(): Promise<{
+  async detectTables(): Promise<{
     hasBoot3: boolean;
     hasBoot4: boolean;
     hasDefault: boolean;
@@ -37,16 +37,19 @@ export class QueryBuilderHelpers {
     }
 
     try {
+      const checkTable = async (tableName: string) => {
+        try {
+          await this.knex!.raw(`SELECT 1 FROM ${tableName} LIMIT 1`);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
       const [boot3, boot4, defaultTable] = await Promise.all([
-        this.knex.schema
-          .hasTable('boot3_batch_job_execution')
-          .catch(() => false),
-        this.knex.schema
-          .hasTable('boot4_batch_job_execution')
-          .catch(() => false),
-        this.knex.schema
-          .hasTable('batch_job_execution')
-          .catch(() => false),
+        checkTable('boot3_batch_job_execution'),
+        checkTable('boot4_batch_job_execution'),
+        checkTable('batch_job_execution'),
       ]);
 
       this.tableCache = {

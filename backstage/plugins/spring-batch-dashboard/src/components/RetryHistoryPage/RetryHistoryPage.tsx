@@ -78,6 +78,7 @@ export const RetryHistoryPage = () => {
   const bootVersion = searchParams.get('bootVersion') as
     | 'Boot3'
     | 'Boot4'
+    | 'Default'
     | null;
   const [executions, setExecutions] = useState<JobExecution[]>([]);
   const [loading, setLoading] = useState(true);
