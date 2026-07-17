@@ -4,6 +4,8 @@ application-default.yaml
 # VS Code
 bin
 
+# Backstage
+.yarn
 
 # Created by https://www.toptal.com/developers/gitignore/api/gradle,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=gradle,visualstudiocode
