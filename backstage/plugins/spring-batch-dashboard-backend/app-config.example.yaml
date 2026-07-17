@@ -1,0 +1,52 @@
+# Spring Batch Plugin Configuration Examples
+
+springBatch:
+  # Optional: Specify which environment to use as default
+  # If not set, the first configured database will be used
+  defaultEnvironment: production
+
+  # Database configurations for different environments
+  # You can add as many environments as you need
+  databases:
+    # Production environment
+    production:
+      client: pg
+      connection:
+        host: ${SPRING_BATCH_PROD_HOST}
+        port: 5432
+        user: ${SPRING_BATCH_PROD_USER}
+        password: ${SPRING_BATCH_PROD_PASSWORD}
+        database: spring_batch
+        ssl:
+          rejectUnauthorized: false
+      pool:
+        min: 5
+        max: 20
+        idleTimeoutMillis: 30000
+      acquireConnectionTimeout: 60000
+
+    # Staging environment
+    staging:
+      client: pg
+      connection:
+        host: ${SPRING_BATCH_STAGING_HOST}
+        port: 5432
+        user: ${SPRING_BATCH_STAGING_USER}
+        password: ${SPRING_BATCH_STAGING_PASSWORD}
+        database: spring_batch
+      pool:
+        min: 2
+        max: 10
+
+    # Development environment (local)
+    development:
+      client: pg
+      connection:
+        host: localhost
+        port: 5432
+        user: postgres
+        password: ${POSTGRES_PASSWORD}
+        database: spring_batch
+      pool:
+        min: 2
+        max: 5

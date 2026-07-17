@@ -1,0 +1,31 @@
+# Source files
+src/
+*.test.ts
+*.spec.ts
+
+# Development files
+node_modules/
+.eslintrc.js
+.eslintignore
+tsconfig.json
+jest.config.js
+
+# Build artifacts
+*.tsbuildinfo
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Yarn
+yarn-error.log
+.yarn/
+.pnp.*
