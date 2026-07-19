@@ -162,3 +162,5 @@ springBatch:
       pool:
         min: 2
         max: 10
+      http:
+        url: http://localhost:8080/api/jobs

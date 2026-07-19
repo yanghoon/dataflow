@@ -6,7 +6,12 @@ import {
   fetchApiRef,
 } from '@backstage/core-plugin-api';
 import { rootRouteRef } from './routes';
-import { SpringBatchClient, springBatchApiRef } from './api';
+import {
+  SpringBatchClient,
+  SpringBatchUpstreamClient,
+  springBatchApiRef,
+  springBatchUpstreamApiRef,
+} from './api';
 
 export const springBatchPlugin = createPlugin({
   id: 'spring-batch-dashboard',
@@ -19,6 +24,15 @@ export const springBatchPlugin = createPlugin({
       },
       factory: ({ discoveryApi, fetchApi }) =>
         new SpringBatchClient({ discoveryApi, fetchApi }),
+    }),
+    createApiFactory({
+      api: springBatchUpstreamApiRef,
+      deps: {
+        discoveryApi: discoveryApiRef,
+        fetchApi: fetchApiRef,
+      },
+      factory: ({ discoveryApi, fetchApi }) =>
+        new SpringBatchUpstreamClient({ discoveryApi, fetchApi }),
     }),
   ],
   routes: {

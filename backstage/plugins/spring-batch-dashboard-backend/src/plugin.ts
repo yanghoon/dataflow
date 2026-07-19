@@ -30,7 +30,7 @@ export const springBatchPlugin = createBackendPlugin({
         });
 
         // Router 등록
-        const router = await createRouter({ logger, connectionManager });
+        const router = await createRouter({ logger, connectionManager, config });
         httpRouter.use(router);
 
         logger.info('Spring Batch plugin initialized successfully');

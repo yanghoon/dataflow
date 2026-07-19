@@ -14,9 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.slim.ingestion.batch.job.step.HttpTasklet.Constants;
-
-
 @RestController
 @RequestMapping("/api/jobs")
 public class JobController {
@@ -27,6 +24,12 @@ public class JobController {
     public JobController(JobOperator jobOperator, JobRegistry jobRegistry) {
         this.jobOperator = jobOperator;
         this.jobRegistry = jobRegistry;
+    }
+
+    @GetMapping
+    public ResponseEntity<Object> getJobInfoList() {
+        var jobNames = jobRegistry.getJobNames();
+        return ResponseEntity.ok(jobNames);
     }
 
     @GetMapping("/{jobName}:run")

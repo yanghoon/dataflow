@@ -4,7 +4,7 @@ import {
   PageBlueprint,
 } from '@backstage/frontend-plugin-api';
 import { createApiFactory, discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
-import { springBatchApiRef, SpringBatchClient } from './api';
+import { springBatchApiRef, springBatchUpstreamApiRef, SpringBatchClient, SpringBatchUpstreamClient } from './api';
 import { rootRouteRef } from './routes';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 
@@ -18,6 +18,21 @@ export const springBatchApiExtension = ApiBlueprint.make({
       },
       factory: ({ discoveryApi, fetchApi }) =>
         new SpringBatchClient({ discoveryApi, fetchApi }),
+    })
+  ),
+});
+
+export const springBatchUpstreamApiExtension = ApiBlueprint.make({
+  name: 'upstream',
+  params: factory => factory(
+    createApiFactory({
+      api: springBatchUpstreamApiRef,
+      deps: {
+        discoveryApi: discoveryApiRef,
+        fetchApi: fetchApiRef,
+      },
+      factory: ({ discoveryApi, fetchApi }) =>
+        new SpringBatchUpstreamClient({ discoveryApi, fetchApi }),
     })
   ),
 });
@@ -117,6 +132,7 @@ export default createFrontendPlugin({
   pluginId: 'spring-batch-dashboard',
   extensions: [
     springBatchApiExtension,
+    springBatchUpstreamApiExtension,
     springBatchPageExtension,
     springBatchJobInstancesPageExtension,
     springBatchJobExecutionsPageExtension,

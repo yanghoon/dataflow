@@ -111,6 +111,26 @@ export interface Config {
          * @visibility backend
          */
         acquireConnectionTimeout?: number;
+
+        /**
+         * HTTP REST API server configuration for job execution
+         * @visibility backend
+         */
+        http?: {
+          /**
+           * REST API server URL to trigger job executions
+           * @example 'http://batch-api.example.com'
+           */
+          url: string;
+
+          /**
+           * Optional headers to include in upstream requests
+           * @visibility backend
+           */
+          headers?: {
+            [key: string]: string;
+          };
+        };
       };
     };
   };

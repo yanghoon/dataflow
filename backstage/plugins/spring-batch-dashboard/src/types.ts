@@ -118,3 +118,8 @@ export interface DailyTrendData {
   failed: number;
   running: number;
 }
+
+export interface JobNameInfo {
+  jobName: string;
+  displayName: string;
+}

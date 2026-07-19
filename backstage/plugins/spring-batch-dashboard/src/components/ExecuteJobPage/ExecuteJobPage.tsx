@@ -21,18 +21,18 @@ import {
   Progress,
 } from '@backstage/core-components';
 import { useApi } from '@backstage/core-plugin-api';
-import { springBatchApiRef } from '../../api';
-import type { Environment } from '../../types';
+import { springBatchUpstreamApiRef } from '../../api';
+import type { Environment, JobNameInfo } from '../../types';
 import { Alert } from '@mui/material';
 
 export const ExecuteJobPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const api = useApi(springBatchApiRef);
+  const upstreamApi = useApi(springBatchUpstreamApiRef);
   
   const environment = (searchParams.get('environment') as Environment) || 'dev';
   
-  const [jobNames, setJobNames] = useState<string[]>([]);
+  const [jobNames, setJobNames] = useState<JobNameInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,15 +46,16 @@ export const ExecuteJobPage = () => {
   useEffect(() => {
     const fetchJobNames = async () => {
       try {
+        console.log('[ExecuteJobPage] fetchJobNames called with environment:', environment);
         setLoading(true);
-        // We fetch jobs to get distinct job names
-        const jobs = await api.getJobs(environment);
-        const uniqueJobNames = Array.from(new Set(jobs.map(j => j.jobName))).sort();
-        setJobNames(uniqueJobNames);
-        if (uniqueJobNames.length > 0) {
-          setSelectedJob(uniqueJobNames[0]);
+        const fetchedJobNames = await upstreamApi.getJobNames(environment);
+        console.log('[ExecuteJobPage] fetchJobNames result:', fetchedJobNames);
+        setJobNames(fetchedJobNames);
+        if (fetchedJobNames.length > 0) {
+          setSelectedJob(fetchedJobNames[0].jobName);
         }
       } catch (err: any) {
+        console.error('[ExecuteJobPage] fetchJobNames error:', err);
         setError(err.message || 'Failed to fetch job list');
       } finally {
         setLoading(false);
@@ -62,7 +63,7 @@ export const ExecuteJobPage = () => {
     };
 
     fetchJobNames();
-  }, [api, environment]);
+  }, [upstreamApi, environment]);
 
   const handleAddParam = () => {
     setJobParams([...jobParams, { key: '', value: '' }]);
@@ -98,7 +99,7 @@ export const ExecuteJobPage = () => {
       setSuccess(null);
       
       // Call the API to execute the job
-      await api.executeJob(selectedJob, paramsObject, environment);
+      await upstreamApi.executeJob(selectedJob, paramsObject, environment);
       
       setSuccess(`Job ${selectedJob} triggered successfully`);
       
@@ -159,9 +160,9 @@ export const ExecuteJobPage = () => {
               onChange={e => setSelectedJob(e.target.value)}
               sx={{ mb: 4 }}
             >
-              {jobNames.map(name => (
-                <MenuItem key={name} value={name}>
-                  {name}
+              {jobNames.map(job => (
+                <MenuItem key={job.jobName} value={job.jobName}>
+                  {job.displayName}
                 </MenuItem>
               ))}
             </TextField>

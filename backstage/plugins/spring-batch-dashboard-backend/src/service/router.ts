@@ -1,8 +1,10 @@
 import type { LoggerService } from '@backstage/backend-plugin-api';
+import type { Config } from '@backstage/config';
 import express from 'express';
 import type { DatabaseConnectionManager } from '../database/DatabaseConnectionManager';
 import { BatchRepository } from '../database/repositories/BatchRepository';
 import { BatchService } from './BatchService';
+import { UpstreamClient } from './upstream-client';
 import type { JobExecutionQuery } from '../types';
 import {
   ValidationError,
@@ -18,15 +20,18 @@ import {
 export interface RouterOptions {
   logger: LoggerService;
   connectionManager: DatabaseConnectionManager;
+  config: Config;
 }
 
 export async function createRouter(
   options: RouterOptions,
 ): Promise<express.Router> {
-  const { logger, connectionManager } = options;
+  const { logger, connectionManager, config } = options;
 
   const router = express.Router();
   router.use(express.json());
+
+  const upstreamClient = new UpstreamClient({ config, logger });
 
   const availableEnvironments = connectionManager.getAvailableEnvironments();
   const defaultEnvironment = connectionManager.getDefaultEnvironment();
@@ -117,6 +122,21 @@ export async function createRouter(
     }, 'Failed to get job executions'),
   );
 
+  router.get(
+    '/job-names',
+    asyncHandler(async (req, res) => {
+      const environment = validateEnvironment(
+        req.query.environment,
+        availableEnvironments,
+        defaultEnvironment,
+      );
+
+      logger.info(`job-names!!!!!!`)
+      const jobNames = await upstreamClient.getJobNames(environment);
+      res.json(jobNames);
+    }, 'Failed to get job names'),
+  );
+
   router.post(
     '/executions',
     asyncHandler(async (req, res) => {
@@ -135,12 +155,13 @@ export async function createRouter(
         `Executing job ${jobName} with params ${JSON.stringify(jobParams)} in environment ${environment}`,
       );
 
-      // TODO: Implement actual job execution logic here
-      // For now, return a mock success response
-      res.status(202).json({
-        status: 'ACCEPTED',
+      const data = await upstreamClient.executeJob(environment, jobName, jobParams);
+
+      res.status(200).json({
+        status: 'SUCCESS',
         jobName,
-        message: 'Job execution request received',
+        message: 'Job execution request successful',
+        data,
       });
     }, 'Failed to trigger job execution'),
   );
