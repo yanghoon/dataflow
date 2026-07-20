@@ -10,6 +10,36 @@ services:
       - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql
+  
+  minio:
+    image: docker.io/minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: minio-local
+      MINIO_ROOT_PASSWORD: minio-local-password  # 8자 이상 필수
+    ports:
+      - 9000:9000  # S3 API 엔드포인트
+      - 9001:9001  # 웹 콘솔
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # minio-init:
+  #   image: docker.io/minio/mc:latest
+  #   depends_on:
+  #     minio:
+  #       condition: service_healthy  # MinIO가 뜬 뒤에만 실행되도록 헬스체크로 순서 보장
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     mc alias set local http://minio:9000 minio-local minio-local-password &&
+  #     mc mb --ignore-existing local/dataflow &&
+  #     echo 'dataflow 버킷 준비 완료'
+  #     "
 
 volumes:
   pgdata:
+  minio-data:

@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.job.step;
+package io.slim.ingestion.batch.job.step.http;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,6 +23,13 @@ public class HttpTasklet implements Tasklet {
     private static Logger log = LoggerFactory.getLogger(HttpTasklet.class);
     private static RestClient restClient = RestClient.create();
     // private static ObjectMapper objectMapper = new ObjectMapper();
+
+    private HttpCallback callback = new HttpCallback() {};
+
+    public HttpTasklet setCallback(HttpCallback callback) {
+        this.callback = callback;
+        return this;
+    }
 
     @Override
     public @Nullable RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
@@ -49,19 +56,17 @@ public class HttpTasklet implements Tasklet {
         // Send Request
         var res = req.retrieve().toEntity(String.class);
 
-        if (!res.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Fail to request: " + res.getStatusCode());
-        }
+        return callback.call(req, res, chunkContext);
 
         // Save Result
-        log.info("res : {}", res);
-        chunkContext.getStepContext()
-                .getStepExecution()
-                .getJobExecution()
-                .getExecutionContext()
-                .putString(Constants.HTTP_RESULT, res.getBody());
+        // log.info("res : {}", res);
+        // chunkContext.getStepContext()
+        //         .getStepExecution()
+        //         .getJobExecution()
+        //         .getExecutionContext()
+        //         .putString(Constants.HTTP_RESULT, res.getBody());
 
-        return RepeatStatus.FINISHED;
+        // return RepeatStatus.FINISHED;
     }
 
 }

@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import io.slim.ingestion.batch.job.step.HttpTasklet;
+import io.slim.ingestion.batch.job.step.http.HttpTasklet;
 
 @Configuration
 public class HttpJobConfig {
