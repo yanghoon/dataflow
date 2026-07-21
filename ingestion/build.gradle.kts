@@ -22,11 +22,18 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-contract-stub-runner")
 
     // Development
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 
+    // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.junit.platform:junit-platform-launcher")
+
+    // Development for Test
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
 }
 
 extra["springCloudVersion"] = "2025.1.2"
