@@ -10,6 +10,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
     implementation("org.postgresql:postgresql")
 
+    // Scheduler
+    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-starter:16.12.0")
+    implementation("no.bekk.db-scheduler-ui:db-scheduler-ui-spring-boot-4-starter:4.6.0")
+
     // Batch - S3
     implementation(platform("software.amazon.awssdk:bom:2.28.11"))
     implementation("software.amazon.awssdk:s3")
