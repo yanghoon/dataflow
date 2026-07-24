@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.job.config.core;
+package io.slim.ingestion.batch.v2.app.service;
 
 import org.springframework.batch.core.job.parameters.JobParameters;
 

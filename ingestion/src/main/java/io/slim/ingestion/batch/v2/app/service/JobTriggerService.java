@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.service;
+package io.slim.ingestion.batch.v2.app.service;
 
 
 import java.util.List;
@@ -12,7 +12,6 @@ import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.stereotype.Service;
 
-import io.slim.ingestion.batch.job.config.core.JobDef;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -22,14 +21,17 @@ public class JobTriggerService {
     private final Map<String, JobDef> jobDefRegistry;
     private final JobRegistry springJobRegistry;
     private final JobOperator jobOperator;
+    private final org.springframework.batch.core.launch.JobLauncher jobLauncher;
 
     public JobTriggerService(List<JobDef> jobDefs, 
                              JobRegistry springJobRegistry, 
-                             JobOperator jobOperator) {
+                             JobOperator jobOperator,
+                             org.springframework.batch.core.launch.JobLauncher jobLauncher) {
         this.jobDefRegistry = jobDefs.stream()
                 .collect(Collectors.toMap(JobDef::getJobName, def -> def));
         this.springJobRegistry = springJobRegistry;
         this.jobOperator = jobOperator;
+        this.jobLauncher = jobLauncher;
     }
 
     public JobExecution triggerNew(String jobName) throws Exception {
@@ -39,10 +41,10 @@ public class JobTriggerService {
         if (def == null) throw new IllegalArgumentException("Not found job def: " + jobName);
         if (job == null) throw new IllegalArgumentException("Not found job: " + jobName);
 
-        JobParameters params = jobDef.buildParameters(System.currentTimeMillis());
+        JobParameters params = def.buildParameters(System.currentTimeMillis());
 
         log.info("Triggering new job: {} with parameters: {}", jobName, params);
-        return jobOperator.start(job, params);
+        return jobLauncher.run(job, params);
     }
     
     public JobExecution restart(long executionId) throws Exception {

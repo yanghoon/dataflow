@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.infra.rest;
+package io.slim.ingestion.batch.v2.app.infra.rest;
 
 import java.net.URI;
 import java.time.Duration;
@@ -25,7 +25,7 @@ public class DummyController {
 
     private final Map<String, AccessLog> accessLogs = new ConcurrentHashMap<>();
 
-    @Value("${app.dummy.download.location:/dummy.txt}")
+    @Value("${app.dummy.download.location:/customers-100.csv}")
     private String location;
     
     @GetMapping("/download")

@@ -8,7 +8,7 @@ dependencies {
     // Batch
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
-    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.postgresql:postgresql")
 
     // Batch - S3
     implementation(platform("software.amazon.awssdk:bom:2.28.11"))

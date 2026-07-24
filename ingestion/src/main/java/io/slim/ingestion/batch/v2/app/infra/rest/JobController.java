@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.infra.rest;
+package io.slim.ingestion.batch.v2.app.infra.rest;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -14,18 +14,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/jobs")
+@RequiredArgsConstructor
 public class JobController {
 
     private final JobRegistry jobRegistry;
-    private final JobTriggerService triggerService;
-    // private final JobOperator jobOperator;
-
-    public JobController(JobRegistry jobRegistry, JobTriggerService triggerService) {
-        this.jobRegistry = jobRegistry;
-        this.triggerService = triggerService;
-    }
+    private final JobOperator jobOperator;
+    // private final JobTriggerService triggerService;
 
     @GetMapping
     public ResponseEntity<Object> getJobInfoList() {
@@ -39,11 +37,11 @@ public class JobController {
             @RequestParam Map<String, String> params
         ) throws Exception {
         var job = jobRegistry.getJob(jobName);
-        var jobParams = new JobParametersBuilder()
-            .addLocalDateTime("startTime", LocalDateTime.now());
+        var jobParams = new JobParametersBuilder().addLocalDateTime("startTime", LocalDateTime.now());
         params.forEach(jobParams::addString);
 
         var res = jobOperator.start(job, jobParams.toJobParameters());
+        // var res = triggerService.triggerNew(jobName);
         return ResponseEntity.ok(res);
     }
     
