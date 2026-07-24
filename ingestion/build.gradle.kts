@@ -17,6 +17,7 @@ dependencies {
 
     // REST
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
 
     // Mock Server
     implementation("org.springframework.cloud:spring-cloud-starter-contract-stub-runner")

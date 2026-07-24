@@ -1,0 +1,59 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/warehouse?useSSL=false
+    username: postgres-local
+    password: postgres-local
+  batch:
+    jdbc:
+      initialize-schema: always
+
+---
+# springdoc:
+#   swagger-ui:
+#     enabled: true
+
+---
+# logging:
+#   level:
+#     org.apache.hc.client5.http.wire: TRACE
+
+app:
+  connections:
+    http:        # connection-type
+      localhost: # connection-id
+        baseUrl: http://localhost:8080
+        authEnvVar: AUTH_LOCAL
+    s3:
+      local:  # connection-id
+        endpoint: http://localhost:9000
+        region: us-east-1
+        accessKey: minio
+        secretKey: miniopassword
+        pathStyleAccess: true
+
+jobs:
+  simple-http-job:
+    http:
+      connectionId: localhost
+      path: /api/dummy/download.csv
+      retryCounts: 5
+      retryIntervalMs: 5000 # ms
+      timeout: 10000 # ms
+  
+  s3-upload-job:
+    source:
+      type: http
+      http:
+        connectionId: localhost
+        path: /api/dummy/download.csv
+        retryCounts: 5
+        retryIntervalMs: 5000 # ms
+        timeout: 10000 # ms
+    target:
+      connectionId: local
+      bucket: dataflow
+      keyPrefix: localhost/data.csv
+      partSizeBytes: 5242880
+    postgres:
+      table: data_localhost

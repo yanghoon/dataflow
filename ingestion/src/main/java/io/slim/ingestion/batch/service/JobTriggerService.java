@@ -23,7 +23,6 @@ public class JobTriggerService {
     private final JobRegistry springJobRegistry;
     private final JobOperator jobOperator;
 
-    // List<JobDef>를 주입받아 Map으로 변환하여 빠른 검색(O(1)) 지원
     public JobTriggerService(List<JobDef> jobDefs, 
                              JobRegistry springJobRegistry, 
                              JobOperator jobOperator) {
@@ -34,24 +33,19 @@ public class JobTriggerService {
     }
 
     public JobExecution triggerNew(String jobName) throws Exception {
-        // 1. 잡 이름으로 JobDef 구현체 찾기
-        JobDef jobDef = jobDefRegistry.get(jobName);
-        if (jobDef == null) {
-            throw new IllegalArgumentException("등록되지 않은 JobDef 입니다: " + jobName);
-        }
+        JobDef def = jobDefRegistry.get(jobName);
+        Job job = springJobRegistry.getJob(jobName);
 
-        // 2. 동적으로 파라미터 생성 (이 시점에 최신 YAML과 Registry가 조합됨)
+        if (def == null) throw new IllegalArgumentException("Not found job def: " + jobName);
+        if (job == null) throw new IllegalArgumentException("Not found job: " + jobName);
+
         JobParameters params = jobDef.buildParameters(System.currentTimeMillis());
 
-        // 3. Spring Batch Job 실행
-        Job job = springJobRegistry.getJob(jobName);
         log.info("Triggering new job: {} with parameters: {}", jobName, params);
         return jobOperator.start(job, params);
     }
     
     public JobExecution restart(long executionId) throws Exception {
-        // 재시작 로직은 기존처럼 실패한 execution의 파라미터를 그대로 재활용
-        // (JobDef를 통하지 않음)
         try {
             Long newExecutionId = jobOperator.restart(executionId);
             log.info("Restarted executionId: {} -> newExecutionId: {}", executionId, newExecutionId);

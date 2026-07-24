@@ -18,12 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/jobs")
 public class JobController {
 
-    private final JobOperator jobOperator;
     private final JobRegistry jobRegistry;
+    private final JobTriggerService triggerService;
+    // private final JobOperator jobOperator;
 
-    public JobController(JobOperator jobOperator, JobRegistry jobRegistry) {
-        this.jobOperator = jobOperator;
+    public JobController(JobRegistry jobRegistry, JobTriggerService triggerService) {
         this.jobRegistry = jobRegistry;
+        this.triggerService = triggerService;
     }
 
     @GetMapping

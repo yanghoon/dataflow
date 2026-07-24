@@ -35,11 +35,15 @@ public class HttpTasklet implements Tasklet {
     public @Nullable RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
         // Extract Params
-        var jobParams = chunkContext.getStepContext().getJobParameters();
-        var urlStr = jobParams.getOrDefault(Constants.HTTP_URL, "").toString();
-        var methodStr = jobParams.getOrDefault(Constants.HTTP_METHOD, "GET").toString();
-        var headers = jobParams.get(Constants.HTTP_HEADERS);
-        var body = jobParams.get(Constants.HTTP_BODY);
+        // var jobParams = chunkContext.getStepContext().getJobParameters();
+        // var urlStr = jobParams.getOrDefault(Constants.HTTP_URL, "").toString();
+        // var methodStr = jobParams.getOrDefault(Constants.HTTP_METHOD, "GET").toString();
+        // var headers = jobParams.get(Constants.HTTP_HEADERS);
+        // var body = jobParams.get(Constants.HTTP_BODY);
+
+        var step = chunkContext.getStepContext();
+        var prefix = step.getStepName();
+        var params = StepParamsBinder.bind(step.getJobParameters(), prefix, HttpCallParams.class).get();
 
         // Build Request
         var method = HttpMethod.valueOf(methodStr);
@@ -54,7 +58,8 @@ public class HttpTasklet implements Tasklet {
         }
 
         // Send Request
-        var res = req.retrieve().toEntity(String.class);
+        // var res = req.retrieve().toEntity(String.class);
+        var res = req.retrieve();
 
         return callback.call(req, res, chunkContext);
 
