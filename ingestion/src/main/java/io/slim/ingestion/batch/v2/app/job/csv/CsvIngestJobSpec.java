@@ -1,20 +1,15 @@
 package io.slim.ingestion.batch.v2.app.job.csv;
 
+import java.util.List;
+
 public record CsvIngestJobSpec(
     String name,
     String source,
     String token,
+    Integer retryCount,
     Long retryInterval,
     S3Spec s3,
-    // String s3Endpoint,
-    // String s3Bucket,
-    // String s3AccessKey,
-    // String s3SecretKey,
-    // Boolean s3PathStyleAccess,
-    // String s3Region
-    String targetTable,
-    String copySql,
-    String insertSql
+    PostgresSpec postgres
 ) {
 
     public record S3Spec(
@@ -26,4 +21,15 @@ public record CsvIngestJobSpec(
         String region
     ) {}
 
+    public record PostgresSpec(
+        CopySpec copy,
+        String insertSql
+    ) {}
+
+    public record CopySpec(
+        String tableName,
+        String format,
+        Boolean header,
+        List<String> columns
+    ) {}
 }

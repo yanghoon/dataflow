@@ -10,14 +10,19 @@ spring:
       initialize-schema: always
 
 ---
-db-scheduler:
-  auto-create-tables: true
+# db-scheduler:
+#   auto-create-tables: true
+
+# https://www.jobrunr.io/en/documentation/configuration/spring/
+jobrunr:
+  background-job-server:
+    enabled: true
+    worker-count: 10
+  dashboard:
+    enabled: true
+    port: 8000
 
 jobs:
-  schedules:
-    - name: customers-csv-ingest-job
-      cron: "*/5 * * * * *"
-
   csv:
     - name: customers-csv-ingest-job
       source: http://localhost:8080/api/dummy/download
@@ -31,6 +36,38 @@ jobs:
         secret_key: minio-local-password
         path_style_access: true
         region: us-east-1
-      targetTable: customers
-      copySql: classpath:sql/data/customers_csv_copy.sql
-      insertSql: classpath:sql/data/customers_csv_insert.sql
+      postgres:
+        copy:
+          tableName: customers_csv
+          format: csv
+          header: true
+          # columns: [index_id, customer_id, first_name, last_name, company, city, country, phone_1, phone_2, email, subscription_date, website]
+        insertSql: classpath:sql/data/customers_csv_insert.sql
+      # s3_endpoint: http://localhost:9000
+      # s3_bucket: dataflow 
+      # s3_access_key: minio
+      # s3_secret_key: miniopassword
+      # s3_path_style_access: true
+      # s3_region: us-east-1
+
+# jobs:
+#   schedules:
+#     - name: customers-csv-ingest-job
+#       cron: "*/5 * * * * *"
+
+#   csv:
+#     - name: customers-csv-ingest-job
+#       source: http://localhost:8080/api/dummy/download
+#       token: none
+#       retryCount: 10
+#       retryInterval: 5000
+#       s3:
+#         endpoint: http://localhost:9000
+#         bucket: dataflow 
+#         access_key: minio-local
+#         secret_key: minio-local-password
+#         path_style_access: true
+#         region: us-east-1
+#       targetTable: customers
+#       copySql: classpath:sql/data/customers_csv_copy.sql
+#       insertSql: classpath:sql/data/customers_csv_insert.sql

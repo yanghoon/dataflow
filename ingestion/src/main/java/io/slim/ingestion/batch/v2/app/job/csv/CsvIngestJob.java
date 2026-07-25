@@ -2,7 +2,6 @@ package io.slim.ingestion.batch.v2.app.job.csv;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -28,11 +27,9 @@ import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestClient;
 
 import lombok.RequiredArgsConstructor;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @RequiredArgsConstructor
@@ -48,7 +45,7 @@ public class CsvIngestJob {
     public Job buildJob() {
         Step step1 = new StepBuilder(jobSpec.name() + "_headCheckStep", jobRepository)
                 .tasklet(
-                    new HeadCheckTasklet(restClient, jobSpec.source(), jobSpec.retryInterval() ),
+                    new HeadCheckTasklet(restClient, jobSpec.source(), jobSpec.retryInterval()),
                     transactionManager)
                 .build();
 
@@ -57,7 +54,7 @@ public class CsvIngestJob {
                 .build();
 
         Step step3 = new StepBuilder(jobSpec.name() + "_postgresCopyStep", jobRepository)
-                .tasklet(new PostgresCopyTasklet(s3Client, jobSpec.s3().bucket(), dataSource, jobSpec.copySql(), jobSpec.insertSql()), transactionManager)
+                .tasklet(new PostgresCopyTasklet(s3Client, jobSpec.s3().bucket(), dataSource, jobSpec.postgres()), transactionManager)
                 .build();
 
         return new JobBuilder(jobSpec.name(), jobRepository)
@@ -76,18 +73,18 @@ public class CsvIngestJob {
         @Override
         public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
             var response = restClient.head().uri(sourceUrl).retrieve().toBodilessEntity();
-            
+
             if (!response.getStatusCode().is2xxSuccessful()) {
                 throw new IllegalStateException("HEAD 요청 실패: HTTP " + response.getStatusCode());
             }
-            
+
             long contentLength = response.getHeaders().getContentLength();
             if (contentLength <= 0) {
                 // throw new IllegalStateException("Content-Length가 0 이하이거나 알 수 없습니다: " + contentLength);
                 Thread.sleep(retryInterval);
                 return RepeatStatus.CONTINUABLE;
             }
-            
+
             return RepeatStatus.FINISHED;
         }
     }
@@ -110,7 +107,7 @@ public class CsvIngestJob {
             restClient.get().uri(sourceUrl).exchange((request, response) -> {
                 String filename = "download.csv"; // 기본 파일명
                 String contentDisposition = response.getHeaders().getFirst("Content-Disposition");
-                
+
                 // Header에서 파일명 추출
                 if (contentDisposition != null && contentDisposition.contains("filename=")) {
                     filename = contentDisposition.split("filename=")[1].replace("\"", "").trim();
@@ -121,7 +118,7 @@ public class CsvIngestJob {
                 String name = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
                 String ext = dotIndex > 0 ? filename.substring(dotIndex) : "";
                 String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                
+
                 String s3Key = name + "_" + date + ext;
 
                 // Zero-copy로 InputStream을 직접 S3에 업로드
@@ -145,8 +142,7 @@ public class CsvIngestJob {
         private final S3Client s3Client;
         private final String bucket;
         private final DataSource dataSource;
-        private final String copySqlPath;
-        private final String insertSqlPath;
+        private final CsvIngestJobSpec.PostgresSpec postgresSpec;
 
         @Override
         public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
@@ -164,37 +160,61 @@ public class CsvIngestJob {
         }
 
         private void executeCopySql(String s3Key) throws Exception {
-            try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(
-                    GetObjectRequest.builder().bucket(bucket).key(s3Key).build())) {
-                
-                // DataSource 커넥션에서 PgConnection 추출
-                try (Connection conn = dataSource.getConnection()) {
-                    PGConnection pgConn = conn.unwrap(PGConnection.class);
-                    CopyManager copyManager = pgConn.getCopyAPI();
-                    
-                    DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
-                    Resource copyRes = resourceLoader.getResource(copySqlPath);
-                    String copySqlContent = FileCopyUtils.copyToString(new InputStreamReader(copyRes.getInputStream(), StandardCharsets.UTF_8));
-                    
-                    // S3 스트림을 STDIN으로 직접 카피
-                    copyManager.copyIn(copySqlContent, s3Object);
+            var s3Req = GetObjectRequest.builder().bucket(bucket).key(s3Key).build();
+            try (var s3Object = s3Client.getObject(s3Req);
+                 var conn = dataSource.getConnection()) {
+
+                var copySpec = postgresSpec.copy();
+                var tableName = copySpec.tableName();
+
+                // Clear existing rows before reloading
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute("DELETE FROM " + tableName);
                 }
+
+                // Build COPY statement from spec options
+                var columns = "";
+                var format = "csv";
+                var header = "";
+
+                // Column Order
+                if (copySpec.columns() != null && !copySpec.columns().isEmpty()) {
+                    columns = " (%s)".formatted(String.join(", ", copySpec.columns()));
+                }
+
+                // Source File Format
+                if (copySpec.format() != null) {
+                    format = copySpec.format();
+                }
+
+                // Header
+                if (Boolean.TRUE.equals(copySpec.header())) {
+                    header = ", HEADER true";
+                }
+
+                String copySqlContent = """
+                        COPY %s%s FROM STDIN WITH (FORMAT %s%s)
+                        """.formatted(tableName, columns, format, header).trim();
+
+                // Stream S3 object directly into COPY FROM STDIN
+                CopyManager copyManager = conn.unwrap(PGConnection.class).getCopyAPI();
+                copyManager.copyIn(copySqlContent, s3Object);
             }
         }
 
         private void executeInsertSql() throws Exception {
-            if (insertSqlPath == null || insertSqlPath.isBlank()) {
+            if (postgresSpec.insertSql() == null || postgresSpec.insertSql().isBlank()) {
                 return;
             }
 
             DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
-            Resource insertRes = resourceLoader.getResource(insertSqlPath);
+            Resource insertRes = resourceLoader.getResource(postgresSpec.insertSql());
             String insertSqlContent = FileCopyUtils.copyToString(new InputStreamReader(insertRes.getInputStream(), StandardCharsets.UTF_8));
-            
+
             NamedParameterJdbcTemplate jdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("snapshotDate", LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-            
+
             jdbcTemplate.update(insertSqlContent, params);
         }
     }

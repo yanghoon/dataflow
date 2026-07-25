@@ -11,8 +11,8 @@ dependencies {
     implementation("org.postgresql:postgresql")
 
     // Scheduler
-    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-starter:16.12.0")
-    implementation("no.bekk.db-scheduler-ui:db-scheduler-ui-spring-boot-4-starter:4.6.0")
+    // implementation("org.jobrunr:jobrunr-spring-boot-3-starter:7.3.2")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
 
     // Batch - S3
     implementation(platform("software.amazon.awssdk:bom:2.28.11"))
