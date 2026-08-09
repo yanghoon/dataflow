@@ -1,0 +1,307 @@
+앞서 확정된 것: db-scheduler Task는 비즈니스 앱(그룹) 단위로 등록되고, TaskInstance는 WorkflowJob 1개당 1개(jobName=instance-id)입니다. 이번엔 Spring Batch 분기를 제외하고, engine=WORKFLOW 단일 경로만 반영했습니다. CSV export+S3+PG copy와 FDW 복제, 두 워크플로우를 서로 다른 그룹(TaskInstance)에 배치해 db-scheduler 계층과 Workflow 계층의 연결을 명확히 드러냈습니다.
+
+@startuml
+
+skinparam rectangle {
+
+BackgroundColor<<Command>> LightBlue
+
+BackgroundColor<<Event>> Orange
+
+BackgroundColor<<Policy>> Lavender
+
+BackgroundColor<<Aggregate>> LightYellow
+
+BackgroundColor<<ReadModel>> LightGreen
+
+BackgroundColor<<Assumption>> Pink
+
+}
+
+actor "관리자" as admin
+
+actor "운영자" as operator
+
+' ============================================================
+
+' 등록 단계 — Task(그룹)/TaskInstance(WorkflowJob) 생성
+
+' ============================================================
+
+rectangle "SyncWorkflowJobConfig" <<Command>> as cmd_sync
+
+rectangle "Task\n(task_name=group)" <<Aggregate>> as agg_task
+
+note bottom of agg_task
+
+group 단위 Task, 예:
+
+- task_name="data-platform-app"
+
+로직은 항상 동일(WorkflowLauncher 위임)
+
+→ Task 자체는 그룹 개수만큼만 존재
+
+end note
+
+rectangle "TaskInstanceScheduled" <<Event>> as evt_ti_scheduled
+
+admin -> cmd_sync
+
+cmd_sync -> agg_task
+
+agg_task -> evt_ti_scheduled
+
+note right of evt_ti_scheduled
+
+task_instance = jobName
+
+예) "daily-csv-export-job"
+
+"remote-pg-sync-job"
+
+scheduled_tasks 테이블 row 생성
+
+end note
+
+' ============================================================
+
+' Pick 단계 — 예정 시각 도래
+
+' ============================================================
+
+rectangle "예정 시각 도래" <<Policy>> as policy_due
+
+rectangle "PickDueTaskInstance" <<Command>> as cmd_pick
+
+rectangle "TaskInstance" <<Aggregate>> as agg_ti
+
+rectangle "TaskInstancePicked" <<Event>> as evt_picked
+
+note right of evt_picked
+
+picked=true, picked_by=<pod-id>
+
+클러스터 내 단일 pick 보장
+
+(다중 인스턴스 경합 시
+
+select-for-update로 중복 방지)
+
+end note
+
+evt_ti_scheduled -> policy_due
+
+policy_due -> cmd_pick
+
+cmd_pick -> agg_ti
+
+agg_ti -> evt_picked
+
+' ============================================================
+
+' 운영자 — 수동 재실행 (db-scheduler-ui)
+
+' ============================================================
+
+rectangle "db-scheduler-ui\n[Run 버튼]" <<ReadModel>> as rm_ui
+
+rectangle "TriggerNow" <<Command>> as cmd_trigger_now
+
+rectangle "TaskInstance" <<Aggregate>> as agg_ti_manual
+
+rectangle "TaskInstanceRescheduledToNow" <<Event>> as evt_reschedule_now
+
+operator -> rm_ui : 실패/지연 job 확인
+
+rm_ui -> cmd_trigger_now
+
+cmd_trigger_now -> agg_ti_manual
+
+agg_ti_manual -> evt_reschedule_now
+
+note right of evt_reschedule_now
+
+execution_time을 현재로 앞당김
+
+(다음 정기 cron 스케줄 자체는 불변)
+
+end note
+
+evt_reschedule_now --> policy_due
+
+' ============================================================
+
+' 실행 콜백 — Task.execute() 내부, workflowType 분기
+
+' (Spring Batch 분기 제외, WORKFLOW 엔진 단일 경로)
+
+' ============================================================
+
+rectangle "ExecuteTaskCallback" <<Command>> as cmd_execute_cb
+
+rectangle "workflowType 기준 분기" <<Policy>> as policy_dispatch
+
+rectangle "LaunchWorkflow" <<Command>> as cmd_launch
+
+rectangle "WorkflowExecution" <<Aggregate>> as agg_exec
+
+rectangle "WorkflowExecutionStarted" <<Event>> as evt_started
+
+evt_picked -> cmd_execute_cb
+
+cmd_execute_cb -> policy_dispatch
+
+policy_dispatch -> cmd_launch
+
+cmd_launch -> agg_exec
+
+agg_exec -> evt_started
+
+' ============================================================
+
+' Scenario A — CsvExportS3PgCopyWorkflow (요약, 상세는 이전 다이어그램)
+
+' ============================================================
+
+rectangle "CsvExported" <<Event>> as evt_a1
+
+rectangle "S3Uploaded" <<Event>> as evt_a2
+
+rectangle "PostgresCopyCompleted" <<Event>> as evt_a3
+
+rectangle "CsvExportS3PgCopy\nFailed(any step)" <<Event>> as evt_a_fail
+
+policy_dispatch --> evt_started : workflowType=\nCsvExportS3PgCopy
+
+evt_started -> evt_a1
+
+evt_a1 -> evt_a2
+
+evt_a2 -> evt_a3
+
+evt_a1 --> evt_a_fail
+
+evt_a2 --> evt_a_fail
+
+evt_a3 --> evt_a_fail
+
+' ============================================================
+
+' Scenario B — RemotePgToLocalPgFdwWorkflow (요약, 세부는 가정)
+
+' ============================================================
+
+rectangle "FdwForeignTableVerified" <<Event>> as evt_b1
+
+rectangle "DataCopiedViaFdw" <<Event>> as evt_b2
+
+rectangle "RemotePgToLocalPgFdw\nFailed(any step)" <<Event>> as evt_b_fail
+
+rectangle "세부 단계 미확정" <<Assumption>> as assum_b
+
+evt_started -> evt_b1 : workflowType=\nRemotePgToLocalPgFdw
+
+evt_b1 -> evt_b2
+
+evt_b1 --> evt_b_fail
+
+evt_b2 --> evt_b_fail
+
+evt_b2 -> assum_b
+
+note bottom of assum_b
+
+[가정] 이전 다이어그램과 동일하게
+
+로컬 테이블 스왑 여부 등은
+
+이번 대화에서도 미확정 상태
+
+end note
+
+' ============================================================
+
+' 종료 및 TaskInstance 재스케줄
+
+' ============================================================
+
+rectangle "WorkflowExecutionSucceeded" <<Event>> as evt_success
+
+rectangle "WorkflowExecutionFailed" <<Event>> as evt_failed
+
+rectangle "TaskInstance" <<Aggregate>> as agg_ti_complete
+
+rectangle "TaskInstanceRescheduled" <<Event>> as evt_ti_rescheduled
+
+evt_a3 --> evt_success
+
+assum_b --> evt_success
+
+evt_a_fail --> evt_failed
+
+evt_b_fail --> evt_failed
+
+evt_success -> agg_ti_complete
+
+evt_failed -> agg_ti_complete
+
+agg_ti_complete -> evt_ti_rescheduled
+
+note right of evt_ti_rescheduled
+
+completion 시 다음 execution_time으로
+
+row 재생성 (schedule carry-forward)
+
+end note
+
+' ============================================================
+
+' db-scheduler-log — 실행 시점 스냅샷 기록
+
+' ============================================================
+
+rectangle "WorkflowScheduleData\n스냅샷 기록" <<Policy>> as policy_log
+
+rectangle "db-scheduler-log\n(history 테이블)" <<ReadModel>> as rm_log
+
+evt_success ..> policy_log
+
+evt_failed ..> policy_log
+
+policy_log ..> rm_log
+
+note right of rm_log
+
+실행 시점의 content(where, cron 등) +
+
+buildInfo(git.commit.time) 통째로 보관
+
+→ 감사/디버깅용
+
+end note
+
+' ============================================================
+
+' db-scheduler-ui — 운영자 모니터링
+
+' ============================================================
+
+rm_log ..> rm_ui : 조회 가능
+
+evt_picked ..> rm_ui : picked/heartbeat 실시간 반영
+
+operator ..> rm_ui : 실패 이력, 다음 실행시각 확인
+
+admin -[hidden]-> operator
+
+@enduml
+
+이번 다이어그램에서 명확히 한 것
+
+- Task와 TaskInstance의 위계: TaskInstanceScheduled(등록)와 TaskInstancePicked(선택)를 별개 이벤트로 분리해, “Task는 그룹당 1개 고정, TaskInstance는 WorkflowJob당 1개”라는 이전 확정 구조를 그대로 반영했습니다.
+- 운영자의 수동 재실행이 정확히 어느 지점에 개입하는지: TriggerNow → TaskInstanceRescheduledToNow가 policy_due로 다시 합류하도록 그려, “수동 트리거는 execution_time만 앞당길 뿐, 이후 실행 경로는 자동 트리거와 완전히 동일하다”는 이전 결론을 구조로 표현했습니다.
+- db-scheduler-log와 UI를 ReadModel로 분리: 이벤트 스토밍에서 로그·UI는 Command/Event를 발생시키는 주체가 아니라 결과를 읽는 대상이므로, <<ReadModel>>로 명확히 구분했습니다.
+
+여전히 가정으로 남은 부분: FDW 워크플로우의 세부 단계(로컬 테이블 스왑 여부 등)는 이번에도 이전 대화에 근거가 없어 추론 상태 그대로 남겨뒀습니다 — 리뷰 시 확정해주시면 다음 개정에 반영하겠습니다.

@@ -2,6 +2,7 @@ plugins {
     id("java")
     id("org.springframework.boot") version "4.0.7"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.gorylenko.gradle-git-properties") version "4.0.1"
 }
 
 dependencies {
@@ -12,7 +13,9 @@ dependencies {
 
     // Scheduler
     // implementation("org.jobrunr:jobrunr-spring-boot-3-starter:7.3.2")
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
+    // implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
+    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
+    implementation("no.bekk.db-scheduler-ui:db-scheduler-ui-spring-boot-4-starter:4.7.0")
 
     // Batch - S3
     implementation(platform("software.amazon.awssdk:bom:2.28.11"))
@@ -35,6 +38,7 @@ dependencies {
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.xerial:sqlite-jdbc")
 
     // Development for Test
     testCompileOnly("org.projectlombok:lombok")
@@ -51,4 +55,14 @@ dependencyManagement {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+gitProperties {
+    customProperty("git.build.time", "none")
+    customProperty("git.build.host", "none")
+    customProperty("git.build.user.name", "none")
+    customProperty("git.build.user.email", "none")
+    keys = listOf("git.branch", "git.commit.id.abbrev", "git.commit.time")
+    dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+    dateFormatTimeZone = "UTC"
 }
