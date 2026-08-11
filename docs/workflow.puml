@@ -1,0 +1,59 @@
+@startuml
+
+skinparam rectangle {
+    BackgroundColor<<Command>> LightBlue
+    BackgroundColor<<Event>> Orange
+    BackgroundColor<<Policy>> Lavender
+    BackgroundColor<<Aggregate>> LightYellow
+    BackgroundColor<<ReadModel>> LightGreen
+    BackgroundColor<<Assumption>> Pink
+}
+skinparam note {
+    BackgroundColor LightGreen
+    BorderColor Black
+}
+skinparam package {
+    BorderStyle dashed
+    BorderColor Gray
+}
+
+rectangle "Schedule WorkflowJob" <<Policy>> as policy_schedule
+rectangle "Dispatch Workflow" <<Policy>> as policy_dispatch
+rectangle "WorkflowJobResolved" <<Event>> as evt_job_resolved
+
+policy_schedule -d-> evt_job_resolved: job_name
+evt_job_resolved -> policy_dispatch
+note on link : WorkflowJob\n- name, type\n- config
+
+package "Workflows" {
+
+  frame "CsvToS3ToPgWorkflow" {
+    together {
+      rectangle "CsvExported" <<Event>> as evt_csv_1
+      rectangle "S3Uploaded" <<Event>> as evt_csv_2
+      rectangle "PostgresCopyCompleted" <<Event>> as evt_csv_3
+    }
+    evt_csv_1 -> evt_csv_2
+    evt_csv_2 -> evt_csv_3
+  }
+
+  'rectangle "RemoteTableCreated" <<Event>> as evt_pg_0
+  frame "PostgresRemoteCopyWorkflow" {
+    together {
+      rectangle "RemoteTableVerified" <<Event>> as ev_pg_1
+      rectangle "RemoteTableCopied" <<Event>> as ev_pg_2
+    }
+    'evt_b0 .u.> evt_pg_0
+    ev_pg_1 -> ev_pg_2
+  }
+
+  evt_csv_1 -[hidden]-> ev_pg_1
+}
+
+policy_dispatch -> evt_csv_1
+note on link : WorkflowJob(type=csv)
+
+policy_dispatch -> ev_pg_1
+note on link : WorkflowJob(type=postgres)
+
+@enduml
