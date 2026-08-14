@@ -52,15 +52,24 @@ public class WorkflowSchedulerConfig {
     }
 
     @Bean
-    public Scheduler scheduler(
-        DataSource dataSource,
-        List<RecurringTaskWithPersistentSchedule<WorkflowScheduleData>> tasks) {
-        log.info("[SCHEDULER-INIT] db-scheduler 엔진 기동, Task 개수={}", tasks.size());
-        
-        List<com.github.kagkarlsson.scheduler.task.Task<?>> genericTasks = new ArrayList<>(tasks);
-        var builder = Scheduler.create(dataSource, genericTasks)
-            .threads(10);
-            
-        return builder.build();
+    public com.github.kagkarlsson.scheduler.task.Task<Void> simpleTestTask() {
+        return Tasks.oneTime("simple-one-time-task")
+            .execute((instance, ctx) -> {
+                log.info("Hello from simpleTestTask! This is a one-time execution.");
+            });
     }
+
+    @Bean
+    public org.springframework.boot.CommandLineRunner scheduleTestTask(Scheduler scheduler, com.github.kagkarlsson.scheduler.task.Task<Void> simpleTestTask) {
+        return args -> {
+            try {
+                String instanceId = "instance-" + java.util.UUID.randomUUID().toString();
+                scheduler.schedule(simpleTestTask.instance(instanceId), java.time.Instant.now().plusSeconds(5));
+                log.info("Scheduled simple-one-time-task with id: {}", instanceId);
+            } catch (Exception e) {
+                log.info("Error scheduling simple-one-time-task: {}", e.getMessage());
+            }
+        };
+    }
+
 }

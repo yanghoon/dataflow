@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dataflow-ingestion
+  labels:
+    app: dataflow-ingestion
+spec:
+  rules:
+    - host: dataflow.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dataflow-ingestion
+                port:
+                  number: 80
