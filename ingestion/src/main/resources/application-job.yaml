@@ -76,7 +76,7 @@ workflow:
       jobName: daily-sales-csv-export
       group: sales-app
       engine: WORKFLOW
-      workflowType: CsvExportS3PgCopyWorkflow
+      workflowType: csv-export
       cronExpression: "0 0 * * * *"        # every hour on the hour
       enabled: true
       where:
@@ -90,7 +90,7 @@ workflow:
       jobName: remote-pg-catalog-sync
       group: inventory-app
       engine: WORKFLOW
-      workflowType: RemotePgToLocalPgFdwWorkflow
+      workflowType: remote-pg-sync
       cronExpression: "0 0 2 * * *"        # daily at 02:00
       enabled: true
       where:
@@ -110,3 +110,16 @@ workflow:
         feignClientId: "catalog-api"
         pageSize: "500"
         targetTable: "catalog_raw"
+
+    # Key-Value 기반 동적 워크플로우 예시
+    key-value-sample-job:
+      jobName: key-value-sample-job
+      group: generic-app
+      engine: WORKFLOW
+      workflowType: key-value-workflow
+      cronExpression: "0 */5 * * * *"        # every 5 minutes
+      enabled: true
+      where:
+        myCustomKey1: "myCustomValue1"
+        targetSystem: "system-a"
+        actionType: "sync"

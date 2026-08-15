@@ -24,16 +24,16 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
     private final WorkflowJobsYaml yamlJobs;
     private final SchedulerClient schedulerClient;
     private final BuildInfo myBuildInfo; // git.commit.time 기반, 이 파드가 물고 있는 값
-    private final List<RecurringTaskWithPersistentSchedule<WorkflowScheduleData>> tasks;
+    private final RecurringTaskWithPersistentSchedule<WorkflowScheduleData> workflowJobTask;
 
     public WorkflowScheduleBootstrapper(WorkflowJobsYaml yamlJobs,
                                         SchedulerClient schedulerClient,
                                         BuildInfo myBuildInfo,
-                                        List<RecurringTaskWithPersistentSchedule<WorkflowScheduleData>> tasks) {
+                                        RecurringTaskWithPersistentSchedule<WorkflowScheduleData> workflowJobTask) {
         this.yamlJobs = yamlJobs;
         this.schedulerClient = schedulerClient;
         this.myBuildInfo = myBuildInfo;
-        this.tasks = tasks;
+        this.workflowJobTask = workflowJobTask;
     }
 
     @Override
@@ -50,12 +50,11 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
     }
 
     private void syncOne(WorkflowJobSpec spec) {
-        TaskInstanceId id = TaskInstanceId.of(spec.group(), spec.jobName());
+        TaskInstanceId id = TaskInstanceId.of("workflowjob", spec.jobName());
         Schedule desiredSchedule = Schedules.cron(spec.cronExpression());
         WorkflowScheduleData desired = new WorkflowScheduleData(desiredSchedule, myBuildInfo, spec.toSnapshot());
 
-        var task = tasks.stream().filter(t -> t.getName().equals(spec.group())).findFirst().orElseThrow();
-        var taskInstance = task.instance(spec.jobName(), desired);
+        var taskInstance = workflowJobTask.instance(spec.jobName(), desired);
 
         Optional<ScheduledExecution<Object>> existing =
             schedulerClient.getScheduledExecution(id);

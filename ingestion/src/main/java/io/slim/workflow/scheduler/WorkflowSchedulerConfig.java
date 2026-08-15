@@ -18,36 +18,19 @@ public class WorkflowSchedulerConfig {
         org.slf4j.LoggerFactory.getLogger(WorkflowSchedulerConfig.class);
 
     @Bean
-    public List<String> configuredGroups(WorkflowJobsYaml yamlJobs) {
-        if (yamlJobs.jobs() == null) return List.of();
-        return yamlJobs.jobs().values().stream()
-                .map(job -> job.group())
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    @Bean
-    public List<RecurringTaskWithPersistentSchedule<WorkflowScheduleData>> workflowGroupTasks(
-        WorkflowTriggerExecutor executor,
-        List<String> configuredGroups) {
+    public RecurringTaskWithPersistentSchedule<WorkflowScheduleData> workflowJobTask(
+        WorkflowTriggerExecutor executor) {
         
-        List<RecurringTaskWithPersistentSchedule<WorkflowScheduleData>> tasks = new ArrayList<>();
-        for (String group : configuredGroups) {
-            tasks.add(createGroupTask(group, executor));
-        }
-        return tasks;
-    }
-
-    private RecurringTaskWithPersistentSchedule<WorkflowScheduleData> createGroupTask(
-        String group, WorkflowTriggerExecutor executor) {
-        log.info("[TASK-REGISTER] Task '{}' 정의 생성", group);
-        return Tasks.recurringWithPersistentSchedule(group, WorkflowScheduleData.class)
+        String taskName = "workflowjob";
+        log.info("[TASK-REGISTER] Task '{}' 정의 생성", taskName);
+        
+        return Tasks.recurringWithPersistentSchedule(taskName, WorkflowScheduleData.class)
             .onFailure(new FailureHandler.MaxRetriesFailureHandler<>(3,
                 new FailureHandler.ExponentialBackoffFailureHandler<>(Duration.ofSeconds(30), 2)))
             .execute((taskInstance, ctx) -> {
-                log.info("[TASK-EXECUTE] group={} jobName={} 실행 시작", group, taskInstance.getId());
+                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 시작", taskName, taskInstance.getId());
                 executor.run(taskInstance.getId(), taskInstance.getData());
-                log.info("[TASK-EXECUTE] group={} jobName={} 실행 종료", group, taskInstance.getId());
+                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 종료", taskName, taskInstance.getId());
             });
     }
 
