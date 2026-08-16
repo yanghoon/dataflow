@@ -1,9 +1,10 @@
-package io.slim.workflow.domain;
+package io.slim.workflow.app.config.workflow;
+
+import io.slim.workflow.domain.WorkflowJobSnapshot;
 
 import java.util.Map;
 
-@Deprecated
-public record WorkflowJobSpec(
+public record WorkflowJobProperties(
     String jobName,
     String group,
     WorkflowJobSnapshot.Engine engine,
@@ -11,7 +12,8 @@ public record WorkflowJobSpec(
     boolean enabled,
     String workflowType,
     String springBatchJobName,
-    Map<String, String> where
+    Map<String, String> where,
+    String description
 ) {
     public WorkflowJobSnapshot toSnapshot() {
         return new WorkflowJobSnapshot()

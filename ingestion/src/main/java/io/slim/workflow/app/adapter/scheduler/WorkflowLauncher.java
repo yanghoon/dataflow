@@ -10,21 +10,20 @@ public interface WorkflowLauncher {
 
 @org.springframework.stereotype.Component
 class WorkflowLauncherImpl implements WorkflowLauncher {
-    private final Map<String, Workflow> workflowsByType; // workflowType -> Bean, Spring이 주입
-    private final WorkflowExecutionRepository execRepo;
+    private final org.springframework.beans.factory.BeanFactory beanFactory;
 
-    WorkflowLauncherImpl(Map<String, Workflow> workflowsByType, WorkflowExecutionRepository execRepo) {
-        this.workflowsByType = workflowsByType;
-        this.execRepo = execRepo;
+    WorkflowLauncherImpl(org.springframework.beans.factory.BeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
     }
 
     @Override
     public WorkflowExecution launch(WorkflowJobSnapshot snapshot, WorkflowParams params) {
+        WorkflowRepository workflowRepository = beanFactory.getBean(WorkflowRepository.class);
+        WorkflowExecutionRepository execRepo = beanFactory.getBean(WorkflowExecutionRepository.class);
+
         Instant start = Instant.now();
-        Workflow workflow = workflowsByType.get(snapshot.workflowType());
-        if (workflow == null) {
-            throw new IllegalStateException("알 수 없는 workflowType: " + snapshot.workflowType());
-        }
+        Workflow workflow = workflowRepository.findByWorkflowType(snapshot.workflowType())
+                .orElseThrow(() -> new IllegalStateException("알 수 없는 workflowType: " + snapshot.workflowType()));
 
         WorkflowExecutionResult result;
         try {

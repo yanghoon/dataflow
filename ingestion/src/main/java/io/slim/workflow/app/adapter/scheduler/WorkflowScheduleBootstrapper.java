@@ -1,7 +1,7 @@
 package io.slim.workflow.app.adapter.scheduler;
 
 import io.slim.workflow.app.config.workflow.WorkflowJobsYaml;
-import io.slim.workflow.domain.WorkflowJobSpec;
+import io.slim.workflow.app.config.workflow.WorkflowJobProperties;
 import com.github.kagkarlsson.scheduler.SchedulerClient;
 import com.github.kagkarlsson.scheduler.task.TaskInstanceId;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedules;
@@ -43,13 +43,13 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
         log.info("[BOOTSTRAP-START] WorkflowJob {}건 동기화 시작, myVersion={}",
             yamlJobs.jobs().size(), myBuildInfo.gitCommitTimeEpochMillis());
 
-        for (WorkflowJobSpec spec : yamlJobs.jobs().values()) {
+        for (WorkflowJobProperties spec : yamlJobs.jobs().values()) {
             syncOne(spec);
         }
         log.info("[BOOTSTRAP-END] 동기화 완료");
     }
 
-    private void syncOne(WorkflowJobSpec spec) {
+    private void syncOne(WorkflowJobProperties spec) {
         TaskInstanceId id = TaskInstanceId.of("workflowjob", spec.jobName());
         Schedule desiredSchedule = Schedules.cron(spec.cronExpression());
         WorkflowScheduleData desired = new WorkflowScheduleData(desiredSchedule, myBuildInfo, spec.toSnapshot());

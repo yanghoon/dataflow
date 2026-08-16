@@ -1,7 +1,7 @@
 package io.slim.workflow.app.adapter.rest;
 
 import io.slim.workflow.app.config.workflow.WorkflowJobsYaml;
-import io.slim.workflow.domain.WorkflowJobSpec;
+import io.slim.workflow.app.config.workflow.WorkflowJobProperties;
 import com.github.kagkarlsson.scheduler.SchedulerClient;
 import com.github.kagkarlsson.scheduler.task.TaskInstanceId;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +25,7 @@ public class WorkflowJobViewController {
         if (yamlJobs.jobs() == null) return List.of();
         
         List<WorkflowJobView> views = new ArrayList<>();
-        for (WorkflowJobSpec spec : yamlJobs.jobs().values()) {
+        for (WorkflowJobProperties spec : yamlJobs.jobs().values()) {
             TaskInstanceId id = TaskInstanceId.of(spec.group(), spec.jobName());
             var scheduled = schedulerClient.getScheduledExecution(id);
             views.add(new WorkflowJobView(
