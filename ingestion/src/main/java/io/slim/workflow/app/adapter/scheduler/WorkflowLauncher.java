@@ -25,10 +25,12 @@ class WorkflowLauncherImpl implements WorkflowLauncher {
         Workflow workflow = workflowRepository.findByWorkflowType(snapshot.workflowType())
                 .orElseThrow(() -> new IllegalStateException("알 수 없는 workflowType: " + snapshot.workflowType()));
 
+        Exception executionException = null;
         WorkflowExecutionResult result;
         try {
             result = workflow.execute(snapshot, params);
         } catch (Exception e) {
+            executionException = e;
             result = new WorkflowExecutionResult(false, e.getMessage());
         }
 
@@ -38,7 +40,12 @@ class WorkflowLauncherImpl implements WorkflowLauncher {
             start, Instant.now(), result.errorMessage(),
             params.toString(), null
         );
-        return execRepo.save(execution);
+        WorkflowExecution saved = execRepo.save(execution);
+
+        if (executionException != null) {
+            throw new RuntimeException("워크플로우 실행 실패. 재시도를 위해 에러를 전파합니다: " + snapshot.jobName(), executionException);
+        }
+        return saved;
     }
 }
 
