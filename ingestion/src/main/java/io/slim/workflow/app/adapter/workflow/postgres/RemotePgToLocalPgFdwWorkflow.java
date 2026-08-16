@@ -1,4 +1,4 @@
-package io.slim.workflow.job;
+package io.slim.workflow.app.adapter.workflow.postgres;
 
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.WorkflowExecutionResult;
@@ -7,7 +7,6 @@ import io.slim.workflow.domain.WorkflowParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -15,7 +14,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class RemotePgToLocalPgFdwWorkflow implements Workflow {
 

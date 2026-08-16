@@ -1,10 +1,14 @@
 package io.slim.ingestion.batch.job.config.v2;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
-
+import java.util.HashMap;
 import java.util.Map;
+import io.slim.ingestion.batch.job.config.v2.ConnectionSpecs.HttpConnectionSpec;
+import io.slim.ingestion.batch.job.config.v2.ConnectionSpecs.S3ConnectionSpec;
 
 // @Data
 // @Component

@@ -1,4 +1,4 @@
-package io.slim.workflow.launcher;
+package io.slim.workflow.app.adapter.scheduler;
 
 import io.slim.workflow.domain.*;
 import java.time.Instant;
@@ -45,4 +45,15 @@ class WorkflowLauncherImpl implements WorkflowLauncher {
 
 interface WorkflowExecutionRepository {
     WorkflowExecution save(WorkflowExecution execution);
+}
+
+@org.springframework.stereotype.Repository
+class DummyWorkflowExecutionRepository implements WorkflowExecutionRepository {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DummyWorkflowExecutionRepository.class);
+    
+    @Override
+    public WorkflowExecution save(WorkflowExecution execution) {
+        log.info("Saving execution: {}", execution);
+        return execution;
+    }
 }

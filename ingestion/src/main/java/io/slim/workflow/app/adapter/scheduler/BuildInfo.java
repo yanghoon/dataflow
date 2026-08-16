@@ -1,4 +1,4 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
 public record BuildInfo(
     long gitCommitTimeEpochMillis, // version guard 비교 근거 — 같은 커밋이면 항상 동일값

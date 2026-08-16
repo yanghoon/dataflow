@@ -1,4 +1,4 @@
-package io.slim.workflow.job;
+package io.slim.workflow.app.adapter.workflow.generic;
 
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.WorkflowExecutionResult;

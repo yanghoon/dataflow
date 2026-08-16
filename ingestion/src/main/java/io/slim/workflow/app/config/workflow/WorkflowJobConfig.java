@@ -1,7 +1,7 @@
-package io.slim.workflow.config;
+package io.slim.workflow.app.config.workflow;
 
-import io.slim.workflow.job.CsvExportS3PgCopyWorkflow;
-import io.slim.workflow.job.RemotePgToLocalPgFdwWorkflow;
+import io.slim.workflow.app.adapter.workflow.csv.CsvExportS3PgCopyWorkflow;
+import io.slim.workflow.app.adapter.workflow.postgres.RemotePgToLocalPgFdwWorkflow;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -28,7 +28,7 @@ public class WorkflowJobConfig {
     }
 
     @Bean("key-value-workflow")
-    public io.slim.workflow.job.GenericKeyValueWorkflow genericKeyValueWorkflow() {
-        return new io.slim.workflow.job.GenericKeyValueWorkflow();
+    public io.slim.workflow.app.adapter.workflow.generic.GenericKeyValueWorkflow genericKeyValueWorkflow() {
+        return new io.slim.workflow.app.adapter.workflow.generic.GenericKeyValueWorkflow();
     }
 }

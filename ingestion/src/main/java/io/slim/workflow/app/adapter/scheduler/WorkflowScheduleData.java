@@ -1,4 +1,4 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
 import io.slim.workflow.domain.WorkflowJobSnapshot;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedule;

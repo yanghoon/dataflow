@@ -1,4 +1,4 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
 import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.task.Task;

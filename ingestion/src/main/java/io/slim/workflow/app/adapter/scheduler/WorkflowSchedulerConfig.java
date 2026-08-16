@@ -1,4 +1,4 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
 import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.task.helper.RecurringTaskWithPersistentSchedule;
@@ -10,7 +10,7 @@ import javax.sql.DataSource;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
-import io.slim.workflow.config.WorkflowJobsYaml;
+import io.slim.workflow.app.config.workflow.WorkflowJobsYaml;
 
 @Configuration
 public class WorkflowSchedulerConfig {

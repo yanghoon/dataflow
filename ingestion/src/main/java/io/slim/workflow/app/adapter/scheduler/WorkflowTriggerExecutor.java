@@ -1,7 +1,7 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
 import io.slim.workflow.domain.*;
-import io.slim.workflow.launcher.WorkflowLauncher;
+import io.slim.workflow.app.adapter.scheduler.WorkflowLauncher;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.configuration.JobRegistry;

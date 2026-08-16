@@ -1,4 +1,4 @@
-package io.slim.workflow.job;
+package io.slim.workflow.app.adapter.workflow.csv;
 
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.WorkflowExecutionResult;
@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.CopyManager;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -24,7 +23,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class CsvExportS3PgCopyWorkflow implements Workflow {
 

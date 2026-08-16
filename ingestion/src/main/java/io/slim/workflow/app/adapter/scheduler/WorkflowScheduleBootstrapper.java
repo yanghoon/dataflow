@@ -1,6 +1,6 @@
-package io.slim.workflow.scheduler;
+package io.slim.workflow.app.adapter.scheduler;
 
-import io.slim.workflow.config.WorkflowJobsYaml;
+import io.slim.workflow.app.config.workflow.WorkflowJobsYaml;
 import io.slim.workflow.domain.WorkflowJobSpec;
 import com.github.kagkarlsson.scheduler.SchedulerClient;
 import com.github.kagkarlsson.scheduler.task.TaskInstanceId;

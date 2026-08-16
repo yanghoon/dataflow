@@ -1,4 +1,4 @@
-package io.slim.workflow.batch;
+package io.slim.workflow.app.config.batch;
 
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;

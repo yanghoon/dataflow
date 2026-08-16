@@ -1,4 +1,4 @@
-package io.slim.workflow.config;
+package io.slim.workflow.app.config.workflow;
 
 import io.slim.workflow.domain.WorkflowJobSpec;
 import org.springframework.boot.context.properties.ConfigurationProperties;
