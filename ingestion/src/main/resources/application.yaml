@@ -1,4 +1,30 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   batch:
     job:
       enabled: false
+
+s3:
+  region: ap-northeast-2
+  path-style-access: true
+
+debug: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.boot.autoconfigure: DEBUG
+    org.springframework.boot.autoconfigure.condition: TRACE
+    com.github.kagkarlsson.scheduler: DEBUG
+    no.bekk: DEBUG
+    io.rocketbase.extension: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+db-scheduler-ui:
+  history: true

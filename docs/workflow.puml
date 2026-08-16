@@ -18,12 +18,15 @@ skinparam package {
 }
 
 rectangle "Schedule WorkflowJob" <<Policy>> as policy_schedule
-rectangle "Dispatch Workflow" <<Policy>> as policy_dispatch
-rectangle "WorkflowJobResolved" <<Event>> as evt_job_resolved
+rectangle {
+  rectangle "Dispatch Workflow" <<Policy>> as policy_dispatch
+  rectangle "WorkflowJobResolved" <<Event>> as evt_job_resolved
+
+  evt_job_resolved -> policy_dispatch
+  note on link : WorkflowJob\n- name, type\n- config
+}
 
 policy_schedule -d-> evt_job_resolved: job_name
-evt_job_resolved -> policy_dispatch
-note on link : WorkflowJob\n- name, type\n- config
 
 package "Workflows" {
 
