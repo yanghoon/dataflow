@@ -18,12 +18,9 @@ build:
       #   buildCommand: ../build.sh
 
 manifests:
-  rawYaml:
-    - k8s/ingestion-deploy.yaml
-    - k8s/ingestion-service.yaml
-    - k8s/ingestion-ingress.yaml
-  # kustomize:
-  #   paths: ["k8s"]
+  kustomize:
+    paths:
+      - k8s
 
 deploy:
   kubectl:

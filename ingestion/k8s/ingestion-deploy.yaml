@@ -17,6 +17,9 @@ spec:
       containers:
         - name: dataflow-ingestion
           image: dataflow-ingestion
+          envFrom:
+            - secretRef:
+                name: dataflow-ingestion-secrets
           ports:
             - containerPort: 8080
           resources:

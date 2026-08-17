@@ -8,37 +8,41 @@
 
 ## 2. 무작정 따라 하며 시작하기 (Getting Started)
 
-**1단계: 내 PC에서 바로 실행하기 (Docker Compose)**  
-복잡한 프로그램 설치 없이, 터미널(명령 프롬프트)에서 아래 명령어 한 줄만 입력하면 DB와 웹 서버가 한 번에 실행됩니다.
+**1단계: 인프라 구동 (Docker Compose)**  
+터미널에서 아래 명령어를 입력하여 로컬 개발용 DB와 스토리지를 구동합니다.
 ```bash
 docker-compose up -d
 ```
-> 💡 *팁: 테스트가 끝나고 모든 서버를 끄고 싶다면 `docker-compose down`을 입력하세요.*
+> 💡 *팁: 모든 환경을 초기화하며 종료하려면 `docker-compose down -v`를 사용하세요.*
 
-**2단계: 쿠버네티스(k8s) 환경에 배포하기 (Skaffold)**  
-로컬 테스트를 넘어 실제 운영 환경과 유사한 쿠버네티스(k8s)에 배포해보고 싶다면 Skaffold를 사용합니다.
+**2단계: 애플리케이션 실행**  
+로컬 환경에서 Ingestion 앱을 실행합니다.
+```bash
+./gradlew :ingestion:bootRun
+```
+
+**3단계: 쿠버네티스(k8s) 배포 (Skaffold)**  
+운영 환경과 유사한 k8s 배포를 위해 다음 절차를 수행합니다.
+
+1. **DB 스키마 초기화**: 운영 DB 환경 구성을 위해 `src/main/resources/sql/schema/`의 스크립트들을 타겟 DB에 수동으로 실행합니다.
+```bash
+psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f src/main/resources/sql/schema/db_scheduler.sql
+```
+2. **시크릿 환경변수 구성**: k8s Secret 주입을 위해 `k8s/.env.example`을 복사하여 `k8s/.env` 파일을 작성합니다.
+```bash
+cp k8s/.env.example k8s/.env
+```
+3. **앱 배포**: Kustomize 기반의 k8s 배포를 위해 터미널에서 아래 명령어를 실행합니다.
 ```bash
 skaffold run
 ```
-명령어를 입력하면 소스 코드가 도커 이미지로 자동 빌드된 후, k8s 클러스터에 손쉽게 배포됩니다.
 
 ---
 
 ## 3. 데이터베이스는 어떻게 설정되어 있나요? (Database Setup)
 
-**왜 DB가 필요한가요?**  
-시스템이 여러분이 예약한 작업과 진행 상황을 잃어버리지 않고 기억하기 위해 데이터베이스(PostgreSQL 등)에 기록을 남깁니다.
-
-**필수 DB 설정 및 스키마 생성 (v16.12.0 기준)**  
-앱이 DB와 연결되려면 `application.yml` 파일에 커넥션 정보가 필요하며, `db-scheduler`는 테이블을 자동 생성하지 않으므로 초기 설정이 필요합니다.
-
-1. **공식 스키마 다운로드**: 버전에 맞는 DDL 스크립트를 다운로드하여 `schema.sql`로 저장합니다.
-   ```bash
-   curl -sL -o src/main/resources/schema.sql https://raw.githubusercontent.com/kagkarlsson/db-scheduler/16.12.0/db-scheduler/src/test/resources/postgresql_tables.sql
-   ```
-2. **자동 생성 설정**: 애플리케이션 기동 시 실행되도록 하려면 `spring.sql.init.mode=always`를 설정하세요.
-
-*(주의: 라이브러리 업그레이드 시 `UPGRADING.md`를 확인하고 수동 마이그레이션이 필요합니다.)*
+로컬 실행 시 개발자의 별도 DB 설정 개입은 필요하지 않습니다. 
+`compose.yaml`을 통해 Postgres 컨테이너가 처음 생성될 때, `src/main/resources/sql/schema/` 폴더 하위의 모든 SQL 스크립트들이 알파벳 순서대로 마운트되어 자동 실행되며 DB 초기화가 완료됩니다.
 
 ---
 
