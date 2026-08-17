@@ -38,15 +38,19 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (yamlJobs.jobs() == null) return;
-        
-        log.info("[BOOTSTRAP-START] WorkflowJob {}건 동기화 시작, myVersion={}",
-            yamlJobs.jobs().size(), myBuildInfo.gitCommitTimeEpochMillis());
+        syncAll(this.yamlJobs);
+    }
 
-        for (WorkflowJobProperties spec : yamlJobs.jobs().values()) {
+    public void syncAll(WorkflowJobsYaml targetYaml) {
+        if (targetYaml == null || targetYaml.jobs() == null) return;
+        
+        log.info("[BOOTSTRAP-SYNC] WorkflowJob {}건 동기화 시작, myVersion={}",
+            targetYaml.jobs().size(), myBuildInfo.gitCommitTimeEpochMillis());
+
+        for (WorkflowJobProperties spec : targetYaml.jobs().values()) {
             syncOne(spec);
         }
-        log.info("[BOOTSTRAP-END] 동기화 완료");
+        log.info("[BOOTSTRAP-SYNC] 동기화 완료");
     }
 
     private void syncOne(WorkflowJobProperties spec) {
