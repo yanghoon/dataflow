@@ -26,6 +26,8 @@ public class WorkflowConfigTests {
         assertThat(props).isNotNull();
         assertThat(props.jobs()).isNotNull().isNotEmpty();
         assertThat(props.jobs()).containsKey("customers-csv-ingest-job");
+        assertThat(props.jobs().get("customers-csv-ingest-job").jobName())
+                .isEqualTo("customers-csv-ingest-job");
     }
 
 }

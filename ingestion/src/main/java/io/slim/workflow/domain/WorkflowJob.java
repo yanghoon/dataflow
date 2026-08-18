@@ -13,6 +13,10 @@ public record WorkflowJob(
     // String springBatchJobName,
     Map<String, String> props
 ) implements Serializable {
+    public WorkflowJob withJobName(String jobName) {
+        return new WorkflowJob(jobName, group, cron, enabled, workflowType, props);
+    }
+
     // public WorkflowJobSnapshot toSnapshot() {
     //     return new WorkflowJobSnapshot()
     //         .jobName(jobName).group(group).cronExpression(cronExpression)

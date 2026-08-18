@@ -20,41 +20,42 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class WorkflowScheduleBootstrapper implements ApplicationRunner {
 
-    private final WorkflowProperties yamlJobs;
+    private final WorkflowProperties workflowProps;
     private final SchedulerClient schedulerClient;
     private final RecurringTaskWithPersistentSchedule<WorkflowScheduleData> workflowJobTask;
     private final GitProperties gitInfo;
 
     @Override
     public void run(ApplicationArguments args) {
-        syncAll(this.yamlJobs);
+        syncAll(this.workflowProps);
     }
 
-    public void syncAll(WorkflowProperties targetYaml) {
-        if (targetYaml == null || targetYaml.jobs() == null) return;
-        
-        log.info("[BOOTSTRAP-SYNC] WorkflowJob {}건 동기화 시작, myVersion={}",
-            targetYaml.jobs().size(), gitInfo.getCommitTime());
+    public void syncAll(WorkflowProperties workflowProps) {
+        if (workflowProps == null || workflowProps.jobs() == null) {
+            return;
+        }
 
-        for (WorkflowJob job : targetYaml.jobs().values()) {
+        log.info("[BOOTSTRAP-SYNC] Starting synchronization for {} workflow jobs, version={}",
+            workflowProps.jobs().size(), gitInfo.getCommitTime());
+
+        for (WorkflowJob job : workflowProps.jobs().values()) {
             syncOne(job);
         }
-        log.info("[BOOTSTRAP-SYNC] 동기화 완료");
+        log.info("[BOOTSTRAP-SYNC] Synchronization complete");
     }
 
-    private void syncOne(WorkflowJob spec) {
-        var id = TaskInstanceId.of("workflowjob", spec.jobName());
-        var desiredSchedule = Schedules.cron(spec.cron());
-        var desired = new WorkflowScheduleData(desiredSchedule, gitInfo != null ? gitInfo.getCommitTime() : null, spec);
+    private void syncOne(WorkflowJob job) {
+        var taskInstanceId = TaskInstanceId.of(workflowJobTask.getTaskName(), job.jobName());
+        var desiredSchedule = Schedules.cron(job.cron());
+        var desiredData = WorkflowScheduleData.of(desiredSchedule, gitInfo, job);
+        var desiredInstance = workflowJobTask.instance(job.jobName(), desiredData);
 
-        var taskInstance = workflowJobTask.instance(spec.jobName(), desired);
+        var existingExecution = schedulerClient.getScheduledExecution(taskInstanceId);
 
-        var existing = schedulerClient.getScheduledExecution(id);
-
-        if (existing.isEmpty()) {
-            schedulerClient.schedule(taskInstance,
+        if (existingExecution.isEmpty()) {
+            schedulerClient.schedule(desiredInstance,
                 desiredSchedule.getInitialExecutionTime(Instant.now()));
-            log.info("[BOOTSTRAP-CREATE] jobName={}", spec.jobName());
+            log.info("[BOOTSTRAP-CREATE] jobName={}", job.jobName());
             return;
         }
 
@@ -78,8 +79,8 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
         //     return;
         // }
 
-        schedulerClient.reschedule(taskInstance, desiredSchedule.getInitialExecutionTime(Instant.now()));
-        log.info("[BOOTSTRAP-RESCHEDULE] jobName={} 변경 반영", spec.jobName());
+        schedulerClient.reschedule(desiredInstance, desiredSchedule.getInitialExecutionTime(Instant.now()));
+        log.info("[BOOTSTRAP-RESCHEDULE] Applied changes for jobName={}", job.jobName());
     }
 
 }

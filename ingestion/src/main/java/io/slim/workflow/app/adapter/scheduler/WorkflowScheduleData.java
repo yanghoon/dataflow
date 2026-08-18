@@ -1,6 +1,10 @@
 package io.slim.workflow.app.adapter.scheduler;
 
+import java.io.Serializable;
 import java.time.Instant;
+import java.util.Optional;
+
+import org.springframework.boot.info.GitProperties;
 
 import com.github.kagkarlsson.scheduler.task.helper.ScheduleAndData;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedule;
@@ -8,14 +12,45 @@ import com.github.kagkarlsson.scheduler.task.schedule.Schedule;
 import io.slim.workflow.domain.WorkflowJob;
 
 public record WorkflowScheduleData(
-    Schedule schedule,       // 인터페이스 계약 — content.cronExpression()의 파생 캐시
-    Instant gitCommitTime,     // 비교에서 반드시 제외, git.commit.time 기반 version guard
-    WorkflowJob content // 그 외 전부 — 비교/실행판단/UI노출/감사로그 겸용
+    Schedule schedule, // Cached schedule derived from the job cron expression.
+    GitProps gitProps, // Git metadata excluded from content comparisons.
+    WorkflowJob content // Job configuration used for execution and display.
 ) implements ScheduleAndData {
+    public WorkflowScheduleData {
+        gitProps = Optional.ofNullable(gitProps).orElse(GitProps.EMPTY);
+    }
+
+    public static WorkflowScheduleData of(Schedule schedule, GitProperties gitProperties, WorkflowJob content) {
+        return new WorkflowScheduleData(schedule, GitProps.of(gitProperties), content);
+    }
+
     @Override public Schedule getSchedule() { return schedule; }
-    @Override public Object getData() { return null; } // 전체 객체가 어차피 통째로 직렬화됨
+    @Override public Object getData() { return null; }
 
     public boolean hasSameContentAs(WorkflowScheduleData other) {
-        return this.content.equals(other.content); // buildInfo는 비교 범위 밖
+        return content.equals(other.content); // Git metadata is intentionally ignored.
     }
+
+    public record GitProps(
+        String branch,
+        String commitId,
+        Instant commitTime,
+        String shortCommitId
+    ) implements Serializable {
+
+        public static GitProps EMPTY = new GitProps(null, null, null, null);
+
+        public static GitProps of(GitProperties gitProperties) {
+            if (gitProperties == null) return EMPTY;;
+
+            return new GitProps(
+                gitProperties.getBranch(),
+                gitProperties.getCommitId(),
+                gitProperties.getCommitTime(),
+                gitProperties.getShortCommitId()
+            );
+        }
+
+    }
+
 }
