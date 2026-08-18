@@ -15,7 +15,7 @@ dependencies {
     // Scheduler
     // implementation("org.jobrunr:jobrunr-spring-boot-3-starter:7.3.2")
     // implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
-    // implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
+    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
     implementation("no.bekk.db-scheduler-ui:db-scheduler-ui-spring-boot-4-starter:5.0.0")
     // implementation("io.rocketbase.extension:db-scheduler-log-spring-boot-starter:0.7.0")
     
@@ -31,14 +31,16 @@ dependencies {
     // Mock Server
     implementation("org.springframework.cloud:spring-cloud-starter-contract-stub-runner")
 
+    // Actuator
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
     // Development
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     // developmentOnly("org.springframework.boot:spring-boot-docker-compose")
-
-    // Actuator
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    developmentOnly("org.xerial:sqlite-jdbc")
+    developmentOnly("org.springframework.boot:spring-boot-h2console")
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")

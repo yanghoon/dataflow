@@ -12,23 +12,23 @@
 s3:
   clients:
     sales-export-s3:                       # clientId
-      region: "ap-northeast-2"
-      bucket: "data-platform-sales-export"
+      region: ap-northeast-2
+      bucket: data-platform-sales-export
       endpoint: ""                         # empty = use default AWS endpoint
       pathStyleAccess: false
       # Actual credentials are NOT stored here — resolved at runtime
       # via credentialRef against Secret store (Vault / K8s Secret)
-      credentialRef: "s3-cred-sales"
+      credentialRef: s3-cred-sales
       connectionTimeoutMs: 5000
       socketTimeoutMs: 30000
       maxConnections: 50
 
     catalog-sync-s3:
-      region: "ap-northeast-2"
-      bucket: "data-platform-catalog-sync"
+      region: ap-northeast-2
+      bucket: data-platform-catalog-sync
       endpoint: ""
       pathStyleAccess: false
-      credentialRef: "s3-cred-catalog"
+      credentialRef: s3-cred-catalog
       connectionTimeoutMs: 5000
       socketTimeoutMs: 30000
       maxConnections: 50
@@ -40,21 +40,21 @@ s3:
 feign:
   clients:
     sales-api:                             # clientId
-      url: "https://internal-api.corp/sales"
+      url: https://internal-api.corp/sales
       connectTimeoutMs: 3000
       readTimeoutMs: 10000
       # Auth token / API key resolved via credentialRef, not inlined
-      credentialRef: "http-cred-sales-api"
+      credentialRef: http-cred-sales-api
       loggerLevel: BASIC
       retry:
         maxAttempts: 3
         backoffIntervalMs: 500
 
     catalog-api:
-      url: "https://internal-api.corp/catalog"
+      url: https://internal-api.corp/catalog
       connectTimeoutMs: 3000
       readTimeoutMs: 15000
-      credentialRef: "http-cred-catalog-api"
+      credentialRef: http-cred-catalog-api
       loggerLevel: BASIC
       retry:
         maxAttempts: 3

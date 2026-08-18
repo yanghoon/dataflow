@@ -1,17 +1,17 @@
 package io.slim.workflow.app.adapter.workflow.postgres;
 
-import io.slim.workflow.domain.Workflow;
-import io.slim.workflow.domain.WorkflowExecutionResult;
-import io.slim.workflow.domain.WorkflowJobSnapshot;
-import io.slim.workflow.domain.WorkflowParams;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
+
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import io.slim.workflow.domain.Workflow;
+import io.slim.workflow.domain.WorkflowJob;
+import io.slim.workflow.domain.WorkflowParams;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -20,7 +20,7 @@ public class RemotePgToLocalPgFdwWorkflow implements Workflow {
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
 
     @Override
-    public WorkflowExecutionResult execute(WorkflowJobSnapshot snapshot, WorkflowParams params) {
+    public void execute(WorkflowJob snapshot, WorkflowParams params) {
         try {
             // 전체 절차 오케스트레이션, 세부는 private method(향후 Step)에 위임
             verifyForeignTable(snapshot);
@@ -28,18 +28,18 @@ public class RemotePgToLocalPgFdwWorkflow implements Workflow {
             swapToLocalTable(stagingTable, snapshot);
             
             log.info("RemotePgToLocalPgFdwWorkflow completed successfully. Swapped to staging table: {}", stagingTable);
-            return new WorkflowExecutionResult(true, "Data swapped successfully via FDW");
+            // return new WorkflowExecutionResult(true, "Data swapped successfully via FDW");
         } catch (Exception e) {
             log.error("RemotePgToLocalPgFdwWorkflow execution failed", e);
-            return new WorkflowExecutionResult(false, e.getMessage());
+            // return new WorkflowExecutionResult(false, e.getMessage());
         }
     }
 
     // ① 원격 테이블 매핑/접근 권한 사전 검증
     // 책임: where.foreignTable이 postgres_fdw로 정상 연결되는지,
     //       스키마 drift(컬럼 변경) 여부 확인 — 실패 시 이후 단계 진입 차단
-    private void verifyForeignTable(WorkflowJobSnapshot snapshot) {
-        Map<String, String> where = snapshot.where();
+    private void verifyForeignTable(WorkflowJob snapshot) {
+        Map<String, String> where = snapshot.props();
         String foreignTable = where.get("foreignTable");
 
         if (foreignTable == null || foreignTable.isBlank()) {
@@ -60,8 +60,8 @@ public class RemotePgToLocalPgFdwWorkflow implements Workflow {
     // ② FDW 경유로 원격 데이터를 로컬 스테이징 테이블에 복사
     // 책임: SELECT ... FROM foreign_table (params.targetDate 등으로 범위 제한)
     //       → INSERT INTO staging_table, 대용량 시 배치 커밋 단위 분할
-    private String copyViaFdw(WorkflowJobSnapshot snapshot, WorkflowParams params) {
-        Map<String, String> where = snapshot.where();
+    private String copyViaFdw(WorkflowJob snapshot, WorkflowParams params) {
+        Map<String, String> where = snapshot.props();
         String foreignTable = where.get("foreignTable");
         String targetTable = where.get("targetTable");
         
@@ -95,8 +95,8 @@ public class RemotePgToLocalPgFdwWorkflow implements Workflow {
     // ③ 스테이징 테이블을 실제 서비스 테이블로 무중단 교체
     // 책임: where.targetTable과 staging_table을 원자적 스왑(ALTER TABLE RENAME 등)
     //       하여 조회 중단 없이 최신 데이터로 전환, 이전 테이블은 정리
-    private void swapToLocalTable(String stagingTable, WorkflowJobSnapshot snapshot) {
-        Map<String, String> where = snapshot.where();
+    private void swapToLocalTable(String stagingTable, WorkflowJob snapshot) {
+        Map<String, String> where = snapshot.props();
         String targetTable = where.get("targetTable");
         String backupTable = targetTable + "_backup_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
 

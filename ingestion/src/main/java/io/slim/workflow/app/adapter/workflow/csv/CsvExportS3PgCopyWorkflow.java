@@ -1,19 +1,5 @@
 package io.slim.workflow.app.adapter.workflow.csv;
 
-import io.slim.workflow.domain.Workflow;
-import io.slim.workflow.domain.WorkflowExecutionResult;
-import io.slim.workflow.domain.WorkflowJobSnapshot;
-import io.slim.workflow.domain.WorkflowParams;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.postgresql.PGConnection;
-import org.postgresql.copy.CopyManager;
-import org.springframework.web.client.RestClient;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +7,21 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.postgresql.PGConnection;
+import org.postgresql.copy.CopyManager;
+import org.springframework.web.client.RestClient;
+
+import io.slim.workflow.domain.Workflow;
+import io.slim.workflow.domain.WorkflowJob;
+import io.slim.workflow.domain.WorkflowParams;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -31,7 +32,7 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
     private final DataSource dataSource;
 
     @Override
-    public WorkflowExecutionResult execute(WorkflowJobSnapshot snapshot, WorkflowParams params) {
+    public void execute(WorkflowJob snapshot, WorkflowParams params) {
         try {
             // 전체 절차 오케스트레이션만 담당, 세부는 private method(향후 Step)에 위임
             Path csvFile = exportToCsv(snapshot, params);
@@ -39,17 +40,17 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
             long rowCount = copyToPostgres(s3Key, snapshot);
 
             log.info("CsvExportS3PgCopyWorkflow completed successfully. Inserted row count: {}", rowCount);
-            return new WorkflowExecutionResult(true, "Rows imported: " + rowCount);
+            // return new WorkflowExecutionResult(true, "Rows imported: " + rowCount);
         } catch (Exception e) {
             log.error("CsvExportS3PgCopyWorkflow execution failed", e);
-            return new WorkflowExecutionResult(false, e.getMessage());
+            // return new WorkflowExecutionResult(false, e.getMessage());
         }
     }
 
     // ① 원본 조회 → 로컬 CSV 파일 생성
     // 책임: where.endpoint에서 데이터 조회, targetDate 등 WorkflowParams 반영
-    private Path exportToCsv(WorkflowJobSnapshot snapshot, WorkflowParams params) {
-        Map<String, String> where = snapshot.where();
+    private Path exportToCsv(WorkflowJob snapshot, WorkflowParams params) {
+        Map<String, String> where = snapshot.props();
         String endpoint = where.get("endpoint");
 
         if (endpoint == null || endpoint.isBlank()) {
@@ -82,8 +83,8 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
 
     // ② 생성된 CSV를 S3에 업로드
     // 책임: where의 버킷/경로 정보로 업로드, 업로드 후 원본 임시파일 정리
-    private String uploadToS3(Path csvFile, WorkflowJobSnapshot snapshot) {
-        Map<String, String> where = snapshot.where();
+    private String uploadToS3(Path csvFile, WorkflowJob snapshot) {
+        Map<String, String> where = snapshot.props();
         String bucket = where.get("bucket");
         String prefix = where.getOrDefault("s3Prefix", "exports");
 
@@ -111,8 +112,8 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
 
     // ③ S3의 CSV를 PostgreSQL CopyManager로 적재
     // 책임: where.targetTable 대상, CopyManager 스트리밍 적재, 처리 건수 반환
-    private long copyToPostgres(String s3Key, WorkflowJobSnapshot snapshot) {
-        Map<String, String> where = snapshot.where();
+    private long copyToPostgres(String s3Key, WorkflowJob snapshot) {
+        Map<String, String> where = snapshot.props();
         String bucket = where.get("bucket");
         String targetTable = where.get("targetTable");
 

@@ -1,30 +1,11 @@
 spring:
-  main:
-    allow-bean-definition-overriding: true
-  batch:
-    job:
-      enabled: false
-
-s3:
-  region: ap-northeast-2
-  path-style-access: true
-
-debug: true
-
-logging:
-  level:
-    root: INFO
-    org.springframework.boot.autoconfigure: DEBUG
-    org.springframework.boot.autoconfigure.condition: TRACE
-    com.github.kagkarlsson.scheduler: DEBUG
-    no.bekk: DEBUG
-    io.rocketbase.extension: DEBUG
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dataflow
+    driverClassName: org.postgresql.Driver
+    username: postgres-local
+    password: postgres-local
 
 db-scheduler-ui:
   history: true
+  log:
+    enabled: true

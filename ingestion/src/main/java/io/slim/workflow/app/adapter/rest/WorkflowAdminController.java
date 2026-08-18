@@ -1,7 +1,9 @@
 package io.slim.workflow.app.adapter.rest;
 
-import io.slim.workflow.app.adapter.scheduler.WorkflowScheduleBootstrapper;
-import io.slim.workflow.app.config.workflow.WorkflowJobsYaml;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.PropertiesPropertySource;
@@ -14,19 +16,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import io.slim.workflow.app.adapter.scheduler.WorkflowScheduleBootstrapper;
+import io.slim.workflow.app.config.workflow.WorkflowProperties;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/admin/workflows")
+@RequiredArgsConstructor
 public class WorkflowAdminController {
 
     private final WorkflowScheduleBootstrapper bootstrapper;
-
-    public WorkflowAdminController(WorkflowScheduleBootstrapper bootstrapper) {
-        this.bootstrapper = bootstrapper;
-    }
 
     @PostMapping("/reload")
     public Map<String, Object> reloadYaml(@RequestParam(defaultValue = "classpath:application-workflow.yaml") String configPath) {
@@ -50,9 +49,9 @@ public class WorkflowAdminController {
             env.getPropertySources().addFirst(new PropertiesPropertySource("dynamicYaml", properties));
         }
 
-        WorkflowJobsYaml newYamlJobs = Binder.get(env)
-                .bind("workflow", WorkflowJobsYaml.class)
-                .orElse(new WorkflowJobsYaml(new HashMap<>()));
+        WorkflowProperties newYamlJobs = Binder.get(env)
+                .bind("workflow", WorkflowProperties.class)
+                .orElse(new WorkflowProperties(new HashMap<>()));
 
         bootstrapper.syncAll(newYamlJobs);
 
