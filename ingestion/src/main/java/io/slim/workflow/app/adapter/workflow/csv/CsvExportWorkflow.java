@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import javax.sql.DataSource;
@@ -26,13 +24,13 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Slf4j
 @RequiredArgsConstructor
-public class CsvExportS3PgCopyWorkflow implements Workflow {
+public class CsvExportWorkflow implements Workflow {
 
     @Getter
     private final String type = "csv";
 
-    private RestClient restClient;
-    private S3Client s3Client;
+    private final Map<String, RestClient> restClients;
+    private final Map<String, S3Client> s3Clients;
     private final DataSource dataSource;
 
     @Override
@@ -47,6 +45,7 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
             // return new WorkflowExecutionResult(true, "Rows imported: " + rowCount);
         } catch (Exception e) {
             log.error("CsvExportS3PgCopyWorkflow execution failed", e);
+            throw e;
             // return new WorkflowExecutionResult(false, e.getMessage());
         }
     }
@@ -55,27 +54,28 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
     // 책임: where.endpoint에서 데이터 조회, targetDate 등 WorkflowParams 반영
     private Path exportToCsv(WorkflowJob snapshot, WorkflowParams params) {
         Map<String, String> where = snapshot.props();
-        String endpoint = where.get("endpoint");
+        var clientId = where.get("rest.clientId");
+        var path = where.get("rest.path");
 
-        if (endpoint == null || endpoint.isBlank()) {
-            throw new IllegalArgumentException("where.endpoint is not defined");
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("props.path is not defined");
         }
 
         // WorkflowParams를 통한 targetDate 치환 (파라미터가 없으면 오늘 날짜 사용)
-        String targetDate = params.get("targetDate");
-        if (targetDate == null) {
-            targetDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
+        // String targetDate = params.get("targetDate");
+        // if (targetDate == null) {
+        //     targetDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // }
 
-        String url = endpoint;
-        if (url.contains("{targetDate}")) {
-            url = url.replace("{targetDate}", targetDate);
-        } else {
-            url += (url.contains("?") ? "&" : "?") + "targetDate=" + targetDate;
-        }
+        // String url = path;
+        // if (url.contains("{targetDate}")) {
+        //     url = url.replace("{targetDate}", targetDate);
+        // } else {
+        //     url += (url.contains("?") ? "&" : "?") + "targetDate=" + targetDate;
+        // }
 
-        log.info("Fetching CSV from endpoint: {}", url);
-        return restClient.get().uri(url).exchange((request, response) -> {
+        log.info("Fetching CSV from path: {}", path);
+        return restClients.get(clientId).get().uri(path).exchange((request, response) -> {
             if (!response.getStatusCode().is2xxSuccessful()) {
                 throw new RuntimeException("Failed to fetch CSV: HTTP " + response.getStatusCode());
             }
@@ -89,6 +89,7 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
     // 책임: where의 버킷/경로 정보로 업로드, 업로드 후 원본 임시파일 정리
     private String uploadToS3(Path csvFile, WorkflowJob snapshot) {
         Map<String, String> where = snapshot.props();
+        var clientId = where.get("s3.clientId");
         String bucket = where.get("bucket");
         String prefix = where.getOrDefault("s3Prefix", "exports");
 
@@ -100,10 +101,12 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
 
         log.info("Uploading CSV to S3: s3://{}/{}", bucket, s3Key);
         try {
-            s3Client.putObject(
+            s3Clients
+                .get(clientId)
+                .putObject(
                     PutObjectRequest.builder().bucket(bucket).key(s3Key).build(),
                     csvFile
-            );
+                );
             return s3Key;
         } finally {
             try {
@@ -118,6 +121,7 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
     // 책임: where.targetTable 대상, CopyManager 스트리밍 적재, 처리 건수 반환
     private long copyToPostgres(String s3Key, WorkflowJob snapshot) {
         Map<String, String> where = snapshot.props();
+        var clientId = where.get("s3.clientId");
         String bucket = where.get("bucket");
         String targetTable = where.get("targetTable");
 
@@ -128,7 +132,7 @@ public class CsvExportS3PgCopyWorkflow implements Workflow {
         log.info("Copying CSV from S3 to PostgreSQL table: {}", targetTable);
         var s3Req = GetObjectRequest.builder().bucket(bucket).key(s3Key).build();
 
-        try (var s3Object = s3Client.getObject(s3Req);
+        try (var s3Object = s3Clients.get(clientId).getObject(s3Req);
              var conn = dataSource.getConnection()) {
 
             // truncate 여부 확인 (where 맵에서 옵션 가져오기)

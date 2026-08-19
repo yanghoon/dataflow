@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import io.slim.workflow.app.adapter.workflow.csv.CsvExportS3PgCopyWorkflow;
+import io.slim.workflow.app.adapter.workflow.csv.CsvExportWorkflow;
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.repo.WorkflowJobRepository;
 import io.slim.workflow.domain.repo.WorkflowRepository;
@@ -31,7 +31,7 @@ public class WorkflowConfig {
 
     @Bean
     Workflow csv(AutowireCapableBeanFactory factory) {
-        return factory.createBean(CsvExportS3PgCopyWorkflow.class);
+        return factory.createBean(CsvExportWorkflow.class);
     }
 
 }

@@ -21,11 +21,10 @@ public interface WorkflowLauncher {
             Workflow workflow = workflowRepository.findByWorkflowType(job.type())
                     .orElseThrow(() -> new IllegalStateException("알 수 없는 workflowType: " + job.type()));
 
-            Exception executionException = null;
             try {
                 workflow.execute(job, params);
             } catch (Exception e) {
-                executionException = e;
+                throw e;
             }
         }
     }
