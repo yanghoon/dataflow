@@ -31,10 +31,10 @@ public class WorkflowJobViewController {
         
         List<WorkflowJobView> views = new ArrayList<>();
         for (WorkflowJob spec : yamlJobs.jobs().values()) {
-            TaskInstanceId id = TaskInstanceId.of(spec.group(), spec.jobName());
+            TaskInstanceId id = TaskInstanceId.of(spec.group(), spec.name());
             var scheduled = schedulerClient.getScheduledExecution(id);
             views.add(new WorkflowJobView(
-                spec.jobName(), spec.group(), spec.workflowType(), spec.cron(),
+                spec.name(), spec.group(), spec.type(), spec.cron(),
                 spec.enabled(),
                 scheduled.map(e -> e.getExecutionTime()).orElse(null),
                 scheduled.map(e -> e.isPicked()).orElse(false)

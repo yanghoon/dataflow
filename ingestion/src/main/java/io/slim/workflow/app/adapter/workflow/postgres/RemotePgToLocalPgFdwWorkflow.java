@@ -10,12 +10,16 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.WorkflowJob;
 import io.slim.workflow.domain.WorkflowParams;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
 public class RemotePgToLocalPgFdwWorkflow implements Workflow {
+
+    @Getter
+    private final String type = "postgres";
 
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
 

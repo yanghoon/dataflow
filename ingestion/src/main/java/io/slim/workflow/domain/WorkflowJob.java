@@ -5,22 +5,16 @@ import java.util.Map;
 
 // @Deprecated
 public record WorkflowJob(
-    String jobName,
+    String name,
     String group,
     String cron,
     boolean enabled,
-    String workflowType,
-    // String springBatchJobName,
+    String type,
     Map<String, String> props
 ) implements Serializable {
-    public WorkflowJob withJobName(String jobName) {
-        return new WorkflowJob(jobName, group, cron, enabled, workflowType, props);
+
+    public WorkflowJob withName(String name) {
+        return new WorkflowJob(name, group, cron, enabled, type, props);
     }
 
-    // public WorkflowJobSnapshot toSnapshot() {
-    //     return new WorkflowJobSnapshot()
-    //         .jobName(jobName).group(group).cronExpression(cronExpression)
-    //         .enabled(enabled).engine(engine).workflowType(workflowType)
-    //         .springBatchJobName(springBatchJobName).where(where);
-    // }
 }

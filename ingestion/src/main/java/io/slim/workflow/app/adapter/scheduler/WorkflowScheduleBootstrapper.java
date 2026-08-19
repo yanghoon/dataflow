@@ -45,17 +45,17 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
     }
 
     private void syncOne(WorkflowJob job) {
-        var taskInstanceId = TaskInstanceId.of(workflowJobTask.getTaskName(), job.jobName());
+        var taskInstanceId = TaskInstanceId.of(workflowJobTask.getTaskName(), job.name());
         var desiredSchedule = Schedules.cron(job.cron());
         var desiredData = WorkflowScheduleData.of(desiredSchedule, gitInfo, job);
-        var desiredInstance = workflowJobTask.instance(job.jobName(), desiredData);
+        var desiredInstance = workflowJobTask.instance(job.name(), desiredData);
 
         var existingExecution = schedulerClient.getScheduledExecution(taskInstanceId);
 
         if (existingExecution.isEmpty()) {
             schedulerClient.schedule(desiredInstance,
                 desiredSchedule.getInitialExecutionTime(Instant.now()));
-            log.info("[BOOTSTRAP-CREATE] jobName={}", job.jobName());
+            log.info("[BOOTSTRAP-CREATE] jobName={}", job.name());
             return;
         }
 
@@ -80,7 +80,7 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
         // }
 
         schedulerClient.reschedule(desiredInstance, desiredSchedule.getInitialExecutionTime(Instant.now()));
-        log.info("[BOOTSTRAP-RESCHEDULE] Applied changes for jobName={}", job.jobName());
+        log.info("[BOOTSTRAP-RESCHEDULE] Applied changes for jobName={}", job.name());
     }
 
 }

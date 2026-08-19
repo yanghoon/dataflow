@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClient;
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.WorkflowJob;
 import io.slim.workflow.domain.WorkflowParams;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -27,8 +28,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 @RequiredArgsConstructor
 public class CsvExportS3PgCopyWorkflow implements Workflow {
 
-    private final RestClient restClient;
-    private final S3Client s3Client;
+    @Getter
+    private final String type = "csv";
+
+    private RestClient restClient;
+    private S3Client s3Client;
     private final DataSource dataSource;
 
     @Override

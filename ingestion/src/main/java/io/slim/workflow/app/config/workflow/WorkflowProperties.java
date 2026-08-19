@@ -1,6 +1,5 @@
 package io.slim.workflow.app.config.workflow;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -19,7 +18,7 @@ public record WorkflowProperties(
             jobs = jobs.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                     Map.Entry::getKey,
-                    e -> e.getValue().withJobName(e.getKey())
+                    e -> e.getValue().withName(e.getKey())
                 ));
         }
     }
