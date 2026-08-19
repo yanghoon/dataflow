@@ -66,8 +66,8 @@ public class CsvExportWorkflow implements Workflow {
     // ① 원본 조회 → 로컬 CSV 파일 생성
     // 책임: where.endpoint에서 데이터 조회, targetDate 등 WorkflowParams 반영
     private void exportToCsv(CsvExportContext ctx, WorkflowParams params) {
-        var clientId = ctx.getHttp().clientId();
-        var path = ctx.getHttp().path();
+        var clientId = ctx.getRest().clientId();
+        var path = ctx.getRest().path();
 
         if (path == null || path.isBlank()) {
             throw new IllegalArgumentException("props.path is not defined");
@@ -91,8 +91,13 @@ public class CsvExportWorkflow implements Workflow {
             if (!response.getStatusCode().is2xxSuccessful()) {
                 throw new RuntimeException("Failed to fetch CSV: HTTP " + response.getStatusCode());
             }
-            Path tempFile = Files.createTempFile("export-", ".csv");
-            Files.copy(response.getBody(), tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            var tempFile = Files.createTempFile("export-", ".csv");
+            var size = Files.copy(response.getBody(), tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            if (size == 0) {
+                throw new RuntimeException("Csv file size is zero");
+            }
             
             ctx.setTempFile(tempFile);
             return tempFile;

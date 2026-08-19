@@ -29,9 +29,21 @@ public class WorkflowSchedulerConfig {
         String taskName = "workflowjob";
         log.info("[TASK-REGISTER] Task '{}' 정의 생성", taskName);
         
+        // TODO: Retry from WorkflowJob Config on Failure. (to avoid thread pool lock)
         return Tasks.recurringWithPersistentSchedule(taskName, WorkflowScheduleData.class)
-            .onFailure(new FailureHandler.MaxRetriesFailureHandler<>(3,
-                new FailureHandler.ExponentialBackoffFailureHandler<>(Duration.ofSeconds(30), 2)))
+            .onFailure(FailureHandler.<WorkflowScheduleData>
+                maxRetries(5)
+                .withBackoff(Duration.ofSeconds(30), 2)
+                .then(
+                    new FailureHandler.OnFailureRescheduleUsingTaskDataSchedule<>(),
+                    // (complete, ops) -> {}
+                    // (executionComplete, executionOperations) -> {
+                    (executionComplete) -> {
+                        var jobName = executionComplete.getExecution().taskInstance.getId();
+                        log.error("[TASK-GIVEUP] taskName={} jobName={} 3회 재시도 소진, 다음 정기 스케줄로 복귀", taskName, jobName);
+                    }
+                )
+            )
             .execute((taskInstance, ctx) -> {
                 log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 시작", taskName, taskInstance.getId());
 
