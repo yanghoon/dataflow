@@ -6,7 +6,3 @@ resources:
   - ingestion-service.yaml
   - ingestion-ingress.yaml
 
-secretGenerator:
-  - name: dataflow-ingestion-secrets
-    envs:
-      - .env

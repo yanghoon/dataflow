@@ -29,3 +29,10 @@ deploy:
 #   allow:
 #     - groupKind: CustomResource.your
 #       image: [".*"]
+
+profiles:
+  - name: prod-site-a
+    manifests:
+      kustomize:
+        paths:
+          - k8s/overlays/prod-site-a
