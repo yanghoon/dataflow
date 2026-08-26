@@ -1,0 +1,14 @@
+services:
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      # Datasource Provisioning
+      - ./conf/provisioning/datasources:/etc/grafana/provisioning/datasources
+      # Dashboards Provisioning
+      - ./conf/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      # Dashboard JSON Files
+      - ./conf/dashboard:/etc/grafana/provisioning/dashboards/json

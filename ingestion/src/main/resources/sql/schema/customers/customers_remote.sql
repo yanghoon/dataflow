@@ -14,7 +14,7 @@ CREATE USER MAPPING IF NOT EXISTS FOR "postgres-local"
     OPTIONS (user 'postgres-local', password 'postgres-local');
 
 -- Create 'customers_csv_fdw' remote table
-CREATE FOREIGN TABLE IF NOT EXISTS customers_csv_fdw (
+CREATE FOREIGN TABLE IF NOT EXISTS customers_fdw (
     index_id INTEGER,
     customer_id VARCHAR(50),
     first_name VARCHAR(100),
@@ -30,3 +30,5 @@ CREATE FOREIGN TABLE IF NOT EXISTS customers_csv_fdw (
 )
 SERVER localhost_server
 OPTIONS (schema_name 'public', table_name 'customers_csv');
+
+-- ALTER FOREIGN TABLE IF EXISTS customers_fdw OPTIONS (set schema_name 'public', set table_name 'customers_csv');

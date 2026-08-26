@@ -15,6 +15,9 @@ CREATE TABLE customers_csv (
 );
 
 CREATE TABLE customers (
+    snapshot_date DATE NOT NULL,              -- 데이터 스냅샷 날짜
+    system_id VARCHAR(50) NOT NULL,               -- 시스템 내부용 고유 ID
+
     index_id INTEGER,           -- CSV의 'Index' 컬럼
     customer_id VARCHAR(50) NOT NULL, -- 영문/숫자 혼합 고유 ID
     first_name VARCHAR(100) NOT NULL,

@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    # Mac 환경에서 호스트 OS의 localhost(PostgreSQL)에 접근하기 위해 host.docker.internal 사용
+    url: host.docker.internal:5432
+    database: dataflow
+    user: postgres-local
+    secureJsonData:
+      password: postgres-local
+    jsonData:
+      sslmode: disable
+      postgresVersion: 15
+    isDefault: true

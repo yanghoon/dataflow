@@ -30,7 +30,7 @@ app:
     deafult:
       logger-level: FULL
     dummy:
-      url: http://localhost:8080/api/dummy/download
+      url: http://localhost:8080
       # defaultRequestHeaders:
       #   Authorization: Basic xxxxxx
 
@@ -49,11 +49,28 @@ workflow:
       props:
         rest:
           clientId: dummy
+          path: /customers-100.csv
         s3:
           clientId: primary
           bucket: dataflow 
           keyPattern: customers/v2/customers-{date}.csv
         postgres:
           tableName: customers_csv
-          insertSql: classpath:sql/data/customers_csv_insert.sql
+          insertSql: classpath:sql/data/customers/customers_csv_insert.sql
+          systemId: test
+    
+    departments-csv-ingest-job:
+      type: csv
+      cron: 0 0 * * * *
+      props:
+        rest:
+          clientId: dummy
+          path: /departments.csv
+        s3:
+          clientId: primary
+          bucket: dataflow 
+          keyPattern: customers/v2/departments-{date}.csv
+        postgres:
+          tableName: departments_csv
+          insertSql: classpath:sql/data/customers/departments_csv_insert.sql
           systemId: test
