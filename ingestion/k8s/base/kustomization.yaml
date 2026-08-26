@@ -6,3 +6,12 @@ resources:
   - ingestion-service.yaml
   - ingestion-ingress.yaml
 
+configMapGenerator:
+  - name: dataflow-ingestion-config
+    files:
+      - application.yaml=config/application.yaml
+
+secretGenerator:
+  - name: dataflow-ingestion-secrets
+    envs:
+      - .env

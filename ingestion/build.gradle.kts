@@ -79,11 +79,13 @@ jib {
     from {
         image = "eclipse-temurin:21-jre-alpine"
     }
+    to {
+        image = "dataflow-ingestion"
+    }
     container {
         creationTime = "USE_CURRENT_TIMESTAMP"
         jvmFlags = listOf(
-            "-Djava.security.egd=file:/dev/./urandom",
-            "-Dspring.profiles.active=local"
+            "-Djava.security.egd=file:/dev/./urandom"
         )
     }
 }

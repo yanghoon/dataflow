@@ -1,6 +1,5 @@
 package io.slim.ingestion.batch;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
 
@@ -8,9 +7,9 @@ import org.springframework.web.client.RestClient;
 // @ConfigurationPropertiesScan(basePackages = "io.slim")
 public class BatchApplication {
     
-    public static void main(String[] args) {
-        SpringApplication.run(BatchApplication.class, args);
-    }
+    // public static void main(String[] args) {
+    //     SpringApplication.run(BatchApplication.class, args);
+    // }
 
     @Bean
     public RestClient restClient() {

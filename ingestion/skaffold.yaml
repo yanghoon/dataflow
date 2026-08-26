@@ -20,7 +20,7 @@ build:
 manifests:
   kustomize:
     paths:
-      - k8s
+      - k8s/base
 
 deploy:
   kubectl:

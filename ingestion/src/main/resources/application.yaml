@@ -4,6 +4,11 @@ spring:
     driverClassName: org.postgresql.Driver
     username: postgres-local
     password: postgres-local
+  sql:
+    init:
+      mode: alwqys
+      schemaLocations:
+        - classpath:sql/schema/db_scheduler.sql
 
 db-scheduler-ui:
   history: true
