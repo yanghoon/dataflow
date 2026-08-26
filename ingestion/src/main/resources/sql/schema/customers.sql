@@ -16,7 +16,7 @@ CREATE TABLE customers_csv (
 
 CREATE TABLE customers (
     index_id INTEGER,           -- CSV의 'Index' 컬럼
-    customer_id VARCHAR(50) UNIQUE NOT NULL, -- 영문/숫자 혼합 고유 ID
+    customer_id VARCHAR(50) NOT NULL, -- 영문/숫자 혼합 고유 ID
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     company VARCHAR(255),

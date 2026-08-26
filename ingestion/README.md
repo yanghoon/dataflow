@@ -28,13 +28,13 @@ docker-compose up -d
 ```bash
 psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f src/main/resources/sql/schema/db_scheduler.sql
 ```
-2. **시크릿 환경변수 구성**: k8s Secret 주입을 위해 `k8s/.env.example`을 복사하여 `k8s/.env` 파일을 작성합니다.
+2. **시크릿 환경변수 구성**: k8s Secret 주입을 위해 `k8s/base/.env.example`을 복사하여 대상 사이트(예: `site-a`)에 맞는 템플릿 파일을 생성합니다. 생성된 파일에 운영 환경에 맞는 실제 값을 기입해 주세요.
 ```bash
-cp k8s/.env.example k8s/.env
+cp k8s/base/.env.example k8s/overlays/prod-site-a/.env.prod-site-a
 ```
-3. **앱 배포**: Kustomize 기반의 k8s 배포를 위해 터미널에서 아래 명령어를 실행합니다.
+3. **앱 배포**: Kustomize 기반의 k8s 배포를 위해 타겟 프로파일(예: `prod-site-a`)을 지정하여 아래 명령어를 실행합니다.
 ```bash
-skaffold run
+skaffold run -p prod-site-a
 ```
 
 ---
