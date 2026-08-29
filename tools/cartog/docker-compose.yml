@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  cartog-main:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cartog-main
+    volumes:
+      # 호스트의 프로젝트 절대 경로를 컨테이너 내 동일한 위치로 마운트
+      - ${WORKSPACE_DIR}:${WORKSPACE_DIR}
+      # 호스트의 캐시 디렉토리 마운트 (임베딩 모델 및 ONNX)
+      - ${HOST_CACHE_DIR}:/root/.cache/cartog
+    working_dir: ${WORKSPACE_DIR}
+    # 데몬 모드로 상시 띄워두기 위함
+    command: ["tail", "-f", "/dev/null"]
+    # 호스트의 프록시 및 네트워크 환경변수를 컨테이너로 그대로 전달
+    environment:
+      - HTTP_PROXY
+      - HTTPS_PROXY
+      - NO_PROXY
+      - http_proxy
+      - https_proxy
+      - no_proxy
+    depends_on:
+      - lsp-java
+
+  lsp-java:
+    build:
+      context: .
+      dockerfile: java.Dockerfile
+    container_name: cartog-lsp-java
+    volumes:
+      # Java LSP(jdtls)도 파일 절대경로를 알아야 하므로 동일하게 마운트
+      - ${WORKSPACE_DIR}:${WORKSPACE_DIR}
+    working_dir: ${WORKSPACE_DIR}
+    # java.Dockerfile 내부의 CMD가 socat으로 5000포트 리스닝 실행

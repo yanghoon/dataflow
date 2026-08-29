@@ -10,6 +10,8 @@ bin
 # Skaffold
 .env
 
+.tmp
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/gradle,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=gradle,visualstudiocode
@@ -61,3 +63,5 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/gradle,visualstudiocode
+
+.cartog/
