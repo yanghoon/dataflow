@@ -34,4 +34,9 @@ public class WorkflowConfig {
         return factory.createBean(CsvExportWorkflow.class);
     }
 
+    @Bean
+    Workflow eventExtraction(AutowireCapableBeanFactory factory) {
+        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.EventExtractionWorkflow.class);
+    }
+
 }

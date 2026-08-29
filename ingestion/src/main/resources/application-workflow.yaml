@@ -11,6 +11,7 @@ spring:
         - classpath:sql/schema/db_scheduler.sql
         - classpath:sql/schema/customers.sql
         - classpath:sql/schema/customers_remote.sql
+        - classpath:sql/schema/event_queue.sql
 
 app:
   s3:
@@ -63,3 +64,13 @@ workflow:
           tableName: customers_csv_fdw
           insertSql: classpath:sql/data/customer_csv_fdw_snapshot.sql
           systemId: fdw
+
+    customer-event-extract-job:
+      type: event-extraction
+      cron: 0 0 2 * * *
+      props:
+        sqlPath: classpath:sql/find_customers_for_event.sql
+        status: INACTIVE
+        daysSinceLastLogin: 30
+        eventSource: urn:dataflow:customer-service
+        eventType: com.dataflow.customer.inactive
