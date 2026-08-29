@@ -7,6 +7,10 @@ plugins {
 }
 
 dependencies {
+    // CloudEvents
+    implementation("io.cloudevents:cloudevents-spring:3.0.0")
+    implementation("io.cloudevents:cloudevents-json-jackson:3.0.0")
+
     // Batch
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
@@ -19,6 +23,10 @@ dependencies {
     implementation("no.bekk.db-scheduler-ui:db-scheduler-ui-spring-boot-4-starter:5.0.0")
     // implementation("io.rocketbase.extension:db-scheduler-log-spring-boot-starter:0.7.0")
     
+    // CloudEvents
+    implementation("io.cloudevents:cloudevents-spring:3.0.0")
+    implementation("io.cloudevents:cloudevents-json-jackson:3.0.0")
+
     // Batch - S3
     implementation(platform("software.amazon.awssdk:bom:2.28.11"))
     implementation("software.amazon.awssdk:s3")
