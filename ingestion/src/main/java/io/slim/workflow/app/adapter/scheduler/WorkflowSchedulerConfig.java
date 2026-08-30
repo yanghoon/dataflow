@@ -65,6 +65,21 @@ public class WorkflowSchedulerConfig {
     }
 
     @Bean
+    public Task<java.util.HashMap> workflowAdhocTask(WorkflowLauncher workflowLauncher) {
+        return Tasks.oneTime("workflowjob-adhoc", java.util.HashMap.class)
+            .execute((taskInstance, ctx) -> {
+                java.util.Map data = taskInstance.getData();
+                String jobName = (String) data.get("jobName");
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, String> params = (java.util.Map<String, String>) data.get("overrideParams");
+                
+                log.info("[ADHOC-EXECUTE] jobName={} 파라미터={} 실행 시작", jobName, params);
+                workflowLauncher.launch(jobName, new io.slim.workflow.domain.WorkflowParams(params != null ? params : java.util.Map.of()));
+                log.info("[ADHOC-EXECUTE] jobName={} 실행 종료", jobName);
+            });
+    }
+
+    @Bean
     public Task<Void> simpleTestTask() {
         return Tasks.oneTime("simple-one-time-task")
             .execute((instance, ctx) -> {

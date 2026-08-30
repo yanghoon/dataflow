@@ -42,6 +42,43 @@ public class WorkflowJobViewController {
         }
         return views;
     }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{jobName}/run")
+    public void runAdhoc(
+        @org.springframework.web.bind.annotation.PathVariable String jobName,
+        @org.springframework.web.bind.annotation.RequestBody(required = false) java.util.Map<String, String> overrideParams
+    ) {
+        WorkflowJob job = yamlJobs.jobs().get(jobName);
+        if (job == null) throw new IllegalArgumentException("Unknown job: " + jobName);
+
+        java.util.Set<String> allowed = job.allowedOverrides() != null ? job.allowedOverrides() : java.util.Set.of();
+        if (overrideParams != null) {
+            for (String key : overrideParams.keySet()) {
+                if (!allowed.contains(key)) {
+                    throw new IllegalArgumentException("허용되지 않은 파라미터 오버라이드 시도입니다: " + key);
+                }
+            }
+        }
+
+        java.util.Map<String, String> finalMergedParams = new java.util.HashMap<>(job.props() != null ? job.props() : java.util.Map.of());
+        if (overrideParams != null) {
+            finalMergedParams.putAll(overrideParams);
+        }
+
+        java.util.HashMap<String, Object> taskData = new java.util.HashMap<>();
+        taskData.put("jobName", jobName);
+        taskData.put("overrideParams", overrideParams);
+        taskData.put("finalMergedParams", finalMergedParams);
+
+        String instanceId = "adhoc-" + jobName + "-" + java.util.UUID.randomUUID();
+        com.github.kagkarlsson.scheduler.task.TaskInstance<java.util.HashMap> instance = 
+            new com.github.kagkarlsson.scheduler.task.TaskInstance<>(
+                "workflowjob-adhoc", 
+                instanceId, 
+                taskData
+            );
+        schedulerClient.schedule(instance, Instant.now());
+    }
 }
 
 record WorkflowJobView(
