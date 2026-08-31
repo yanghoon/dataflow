@@ -1,10 +1,13 @@
+-- Domain Event Store (Transactional Outbox)
+-- Implements the CloudEvents 1.0 specification standard.
 CREATE TABLE IF NOT EXISTS outbox_event (
     id VARCHAR(128) NOT NULL,              -- CloudEvent id
     source VARCHAR(255) NOT NULL,          -- CloudEvent source
     type VARCHAR(255) NOT NULL,            -- CloudEvent type
     subject VARCHAR(255),                  -- CloudEvent subject (옵션)
+    datacontenttype VARCHAR(50),           -- CloudEvent datacontenttype
     time TIMESTAMP WITH TIME ZONE NOT NULL,-- CloudEvent 발생 시각
-    data_payload JSONB,                    -- CloudEvent data (본문 JSON)
+    data JSONB,                            -- CloudEvent data (본문 JSON)
     extensions JSONB,                      -- CloudEvent 커스텀 확장 필드
     status VARCHAR(20) NOT NULL DEFAULT 'READY', -- 상태: READY, DONE, FAILED 등
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

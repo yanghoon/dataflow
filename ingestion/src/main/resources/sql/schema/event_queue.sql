@@ -1,3 +1,4 @@
+-- DEPRECATED: This table is no longer used. Please use outbox_event for domain events.
 CREATE TABLE IF NOT EXISTS event_queue (
     seq BIGSERIAL PRIMARY KEY,
     id VARCHAR(64) NOT NULL,

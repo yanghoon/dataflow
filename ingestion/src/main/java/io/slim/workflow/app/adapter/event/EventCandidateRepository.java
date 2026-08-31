@@ -41,7 +41,8 @@ public class EventCandidateRepository {
             String source = rs.getString("source");
             String type = rs.getString("type");
             String subject = rs.getString("subject");
-            String dataPayload = rs.getString("data_payload");
+            String data = rs.getString("data");
+            String datacontenttype = rs.getString("datacontenttype");
             java.sql.Timestamp time = rs.getTimestamp("time");
 
             var builder = CloudEventBuilder.v1()
@@ -53,8 +54,8 @@ public class EventCandidateRepository {
             if (subject != null) {
                 builder.withSubject(subject);
             }
-            if (dataPayload != null) {
-                builder.withData("application/json", dataPayload.getBytes(StandardCharsets.UTF_8));
+            if (data != null) {
+                builder.withData(datacontenttype != null ? datacontenttype : "application/json", data.getBytes(StandardCharsets.UTF_8));
             }
 
             return builder.build();
