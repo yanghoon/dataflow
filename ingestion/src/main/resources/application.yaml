@@ -1,3 +1,8 @@
+app:
+  rest:
+    default:
+      connectTimeout: 5000
+      readTimeout: 5000
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/dataflow

@@ -6,6 +6,12 @@ plugins {
     id("com.google.cloud.tools.jib") version "3.5.4"
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
 dependencies {
     // CloudEvents
     implementation("io.cloudevents:cloudevents-spring:3.0.0")

@@ -7,6 +7,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,14 +32,27 @@ public class JdbcEventMessagePoller {
 
         log.info("[{}] Found {} events to process.", pollerName, events.size());
 
-        for (CloudEvent event : events) {
-            // Dispatch via Spring Event
-            eventPublisher.publishEvent(event);
-        }
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<CompletableFuture<String>> futures = events.stream()
+                    .<CompletableFuture<String>>map(event -> CompletableFuture.supplyAsync(() -> {
+                        eventPublisher.publishEvent(event);
+                        return event.getId();
+                    }, executor))
+                    .toList();
 
-        List<String> ids = events.stream().map(CloudEvent::getId).toList();
-        repository.updateStatusToDone(updateSql, ids);
-        
-        log.info("[{}] Successfully dispatched and committed {} events.", pollerName, events.size());
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .exceptionally(e -> null)
+                    .join();
+
+            List<String> successfulIds = futures.stream()
+                    .filter(f -> !f.isCompletedExceptionally())
+                    .map(CompletableFuture::join)
+                    .toList();
+
+            if (!successfulIds.isEmpty()) {
+                repository.updateStatusToDone(updateSql, successfulIds);
+                log.info("[{}] Successfully dispatched and committed {} events.", pollerName, successfulIds.size());
+            }
+        }
     }
 }
