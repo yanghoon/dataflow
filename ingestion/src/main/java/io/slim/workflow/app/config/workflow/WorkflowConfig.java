@@ -35,8 +35,15 @@ public class WorkflowConfig {
     }
 
     @Bean
-    Workflow eventExtraction(AutowireCapableBeanFactory factory) {
-        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.EventExtractionWorkflow.class);
+    Workflow dormantCustomerPolicy(AutowireCapableBeanFactory factory) {
+        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.DormantCustomerPolicyWorkflow.class);
     }
+
+    @Bean
+    Workflow subscriptionDormantPolicy(AutowireCapableBeanFactory factory) {
+        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.SubscriptionDormantPolicyWorkflow.class);
+    }
+
+
 
 }

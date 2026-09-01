@@ -59,6 +59,7 @@ workflow:
 
     customers-fdw-ingest-jog:
       type: postgres-fdw
+      # TODO: 크론값이 없을 경우 수동 실행으로 처리되도록 버그 수정 필요 (현재는 NPE 발생)
       props:
         postgres:
           tableName: customers_csv_fdw

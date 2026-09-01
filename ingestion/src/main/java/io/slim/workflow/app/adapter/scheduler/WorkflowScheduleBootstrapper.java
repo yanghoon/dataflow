@@ -45,6 +45,11 @@ public class WorkflowScheduleBootstrapper implements ApplicationRunner {
     }
 
     private void syncOne(WorkflowJob job) {
+        if (job.cron() == null || job.cron().isBlank()) {
+            log.info("[BOOTSTRAP-SKIP] jobName={} (No cron expression, assumes manual execution)", job.name());
+            return;
+        }
+
         var taskInstanceId = TaskInstanceId.of(workflowJobTask.getTaskName(), job.name());
         var desiredSchedule = Schedules.cron(job.cron());
         var desiredData = WorkflowScheduleData.of(desiredSchedule, gitInfo, job);

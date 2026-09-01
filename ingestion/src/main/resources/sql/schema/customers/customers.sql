@@ -30,7 +30,6 @@ CREATE TABLE customers (
     email VARCHAR(255),
     subscription_date DATE,                  -- 'YYYY-MM-DD' 형식에 맞는 표준 DATE 타입
     website VARCHAR(255),
-    snapshot_date DATE NOT NULL,
 
     PRIMARY KEY (snapshot_date, index_id),
     UNIQUE (snapshot_date, customer_id)
