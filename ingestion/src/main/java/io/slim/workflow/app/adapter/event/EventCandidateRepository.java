@@ -1,8 +1,11 @@
 package io.slim.workflow.app.adapter.event;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -14,13 +17,16 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class EventCandidateRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<CloudEvent> findCandidates(String extractSql) {
         return jdbcTemplate.query(extractSql, cloudEventRowMapper());
@@ -32,6 +38,25 @@ public class EventCandidateRepository {
         }
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("ids", ids);
+        namedParameterJdbcTemplate.update(updateSql, params);
+    }
+
+    public void updateStatusToFailed(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        String updateSql = "UPDATE outbox_event SET status = 'FAILED', updated_at = CURRENT_TIMESTAMP WHERE id IN (:ids)";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("ids", ids);
+        namedParameterJdbcTemplate.update(updateSql, params);
+    }
+
+    public void updateRetry(String id, int retryCount, String nextRetryAt) {
+        String updateSql = "UPDATE outbox_event SET extensions = COALESCE(extensions, '{}'::jsonb) || jsonb_build_object('retry_count', :retryCount, 'next_retry_at', :nextRetryAt), updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("id", id);
+        params.addValue("retryCount", retryCount);
+        params.addValue("nextRetryAt", nextRetryAt);
         namedParameterJdbcTemplate.update(updateSql, params);
     }
 
@@ -56,6 +81,26 @@ public class EventCandidateRepository {
             }
             if (data != null) {
                 builder.withData(datacontenttype != null ? datacontenttype : "application/json", data.getBytes(StandardCharsets.UTF_8));
+            }
+            
+            String extensions = rs.getString("extensions");
+            if (extensions != null) {
+                try {
+                    Map<String, Object> extMap = objectMapper.readValue(extensions, new TypeReference<Map<String, Object>>() {});
+                    for (Map.Entry<String, Object> entry : extMap.entrySet()) {
+                        String extName = entry.getKey().replaceAll("[^a-z0-9]", ""); // CloudEvents spec requires alphanumeric lowercase
+                        if (extName.isEmpty()) continue;
+                        if (entry.getValue() instanceof String) {
+                            builder.withExtension(extName, (String) entry.getValue());
+                        } else if (entry.getValue() instanceof Number) {
+                            builder.withExtension(extName, (Number) entry.getValue());
+                        } else if (entry.getValue() instanceof Boolean) {
+                            builder.withExtension(extName, (Boolean) entry.getValue());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse extensions JSON", e);
+                }
             }
 
             return builder.build();

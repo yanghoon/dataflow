@@ -87,31 +87,14 @@ public class SubscriptionDormantPolicyWorkflowTest {
             )
         """);
 
-        // mock customers_csv
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS customers_csv (
-                index_id INTEGER PRIMARY KEY,
-                customer_id VARCHAR(50) UNIQUE NOT NULL,
-                first_name VARCHAR(100),
-                last_name VARCHAR(100),
-                company VARCHAR(255),
-                city VARCHAR(100),
-                country VARCHAR(100),
-                phone_1 VARCHAR(50),
-                phone_2 VARCHAR(50),
-                email VARCHAR(255),
-                subscription_date DATE,
-                website VARCHAR(255)
-            )
-        """);
-
-        jdbcTemplate.execute("TRUNCATE TABLE customers_csv");
+        jdbcTemplate.execute("TRUNCATE TABLE customers");
         jdbcTemplate.execute("TRUNCATE TABLE outbox_event");
 
-        // Insert test data
-        jdbcTemplate.execute("INSERT INTO customers_csv (index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (1, 'C1', 'John', 'Doe', '2019-12-31', 'john@test.com')");
-        jdbcTemplate.execute("INSERT INTO customers_csv (index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (2, 'C2', 'Jane', 'Doe', CURRENT_DATE, 'jane@test.com')");
-        jdbcTemplate.execute("INSERT INTO customers_csv (index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (3, 'C3', 'Jim', 'Doe', null, null)");
+        // Insert test data (snapshot_date is used)
+        jdbcTemplate.execute("INSERT INTO customers (snapshot_date, system_id, index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (CURRENT_DATE, 'sys1', 1, 'C1', 'John', 'Doe', '2019-12-31', 'john@test.com')");
+        jdbcTemplate.execute("INSERT INTO customers (snapshot_date, system_id, index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (CURRENT_DATE, 'sys2', 2, 'C2', 'Jane', 'Doe', CURRENT_DATE, 'jane@test.com')");
+        jdbcTemplate.execute("INSERT INTO customers (snapshot_date, system_id, index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (CURRENT_DATE, 'sys3', 3, 'C3', 'Jim', 'Doe', null, null)");
+
 
         WorkflowJob job = new WorkflowJob(
             "job1",
@@ -119,7 +102,7 @@ public class SubscriptionDormantPolicyWorkflowTest {
             "subscription-dormant-policy",
             false,
             "1 * * * *",
-            Map.of("sqlPath", "classpath:test_dormant.sql", "thresholdDays", "20"),
+            Map.of("sqlPath", "classpath:sql/subscription_dormant_policy.sql", "thresholdDays", "20"),
             java.util.Set.of()
         );
 

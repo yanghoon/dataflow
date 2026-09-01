@@ -47,7 +47,7 @@ public class CsvExportWorkflow implements Workflow {
     @Override
     public void execute(WorkflowJob job, WorkflowParams params) {
         try {
-            var context = CsvExportContext.of(job);
+            var context = CsvExportContext.of(job, params);
             // 전체 절차 오케스트레이션만 담당, 세부는 private method(향후 Step)에 위임
             exportToCsv(context, params);
             uploadToS3(context);

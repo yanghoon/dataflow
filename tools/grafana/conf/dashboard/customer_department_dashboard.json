@@ -29,7 +29,7 @@
       "id": 1,
       "datasource": {
         "type": "postgres",
-        "uid": "${DS_DEFAULT}"
+        "uid": "postgresql-ds"
       },
       "options": {
         "legend": {

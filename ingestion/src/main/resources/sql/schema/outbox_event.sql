@@ -18,3 +18,8 @@ CREATE TABLE IF NOT EXISTS outbox_event (
 -- Poller가 status와 type 조합으로 빠르게 조회하기 위한 복합 인덱스
 CREATE INDEX IF NOT EXISTS idx_outbox_event_status_type 
 ON outbox_event (status, type);
+
+-- 재시도 대기중인 이벤트를 빠르게 조회하기 위한 부분 인덱스
+CREATE INDEX IF NOT EXISTS idx_outbox_ready_retry 
+ON outbox_event ((extensions->>'next_retry_at')) 
+WHERE status = 'READY';
