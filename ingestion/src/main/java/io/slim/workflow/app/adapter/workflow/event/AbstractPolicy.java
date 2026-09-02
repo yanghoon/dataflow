@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public abstract class AbstractPolicyWorkflow implements Workflow {
+public abstract class AbstractPolicy implements Workflow {
 
     protected final NamedParameterJdbcTemplate jdbcTemplate;
     protected final ObjectMapper objectMapper;

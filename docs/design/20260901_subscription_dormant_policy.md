@@ -16,13 +16,13 @@
 | 배달 보장 | At-least-once, DB `ON CONFLICT DO NOTHING` 활용 | 멱등성 보장. 고유 키 조합(`CustomerId + "\|" + PolicyName + "\|" + SubscriptionDate`)을 통해 상태 변경 지연 시 중복 발행을 완벽히 방어. |
 | 동시성 제어 | 스케일 아웃 환경에서의 배타적 이벤트 소비 | 여러 대의 서버(Pod)에서 동시 실행되더라도 1대만 작업을 수행하도록 제어. 프로젝트 내 `db-scheduler`의 Task Lock(배타적 실행) 기능을 적극 활용. |
 | 실패/재시도 | 수동 실행: 재시도 / 스케줄 실행: 다음 주기에 위임 | 비즈니스 요구사항 수용. 일시적 장애(DB 타임아웃 등) 시 스케줄러의 다음 실행 주기에 의존하여 자동 복구. |
-| 데이터 모델 | `CloudEvent` 포맷 (`outbox_event` 테이블 적재) | 기존 이벤트 브로커 및 Outbox 릴레이어나 컨슈머와의 완벽한 호환성 유지. |
+| 데이터 모델 | `CloudEvent` 포맷 (`outbox_event` 테이블 적재), 페이로드(`data`): Customer ID, Subscription Date 포함 | 기존 이벤트 브로커 및 Outbox 릴레이어나 컨슈머와의 완벽한 호환성 유지. |
 
 ## 완료 조건 (자가검증)
 - [ ] 컴파일/빌드 통과
 - [ ] 유닛테스트: 고유 Key 생성 로직 검증 (Edge 시나리오 정상 처리)
 - [ ] 통합테스트: Testcontainers (PostgreSQL)를 띄워 실제 쿼리 실행, `outbox_event` INSERT 및 `ON CONFLICT` 중복 방어 작동 여부 검증
-- [ ] 커버리지 기준: 핵심 비즈니스 로직(Key 생성, ResultSet 매핑 등) 테스트 커버리지 달성
+- [ ] 커버리지 기준: 85% 이상 달성
 
 ## 미결 사항
 - 없음 (모든 주요 요구사항 확정 완료)

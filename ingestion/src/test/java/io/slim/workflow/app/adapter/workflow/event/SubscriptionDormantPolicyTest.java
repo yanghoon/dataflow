@@ -30,15 +30,15 @@ import io.slim.workflow.domain.WorkflowParams;
     "spring.sql.init.schemaLocations=classpath:sql/schema/db_scheduler.sql,classpath:sql/schema/customers/customers.sql,classpath:sql/schema/event_queue.sql,classpath:sql/schema/outbox_event.sql"
 })
 @Testcontainers
-@Import(SubscriptionDormantPolicyWorkflowTest.TestConfig.class)
-public class SubscriptionDormantPolicyWorkflowTest {
+@Import(SubscriptionDormantPolicyTest.TestConfig.class)
+public class SubscriptionDormantPolicyTest {
 
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:alpine");
 
     @Autowired
-    private SubscriptionDormantPolicyWorkflow workflow;
+    private SubscriptionDormantPolicy workflow;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -55,16 +55,16 @@ public class SubscriptionDormantPolicyWorkflowTest {
     @DisplayName("유닛테스트: 고유 Key 생성 로직 검증 (Edge Case)")
     void testEventIdGeneration() {
         // Normal case
-        SubscriptionDormantPolicyWorkflow.EventId id1 = SubscriptionDormantPolicyWorkflow.EventId.generate("cust1", "2020-01-01");
+        SubscriptionDormantPolicy.EventId id1 = SubscriptionDormantPolicy.EventId.generate("cust1", "2020-01-01");
         assertThat(id1.naturalKey()).isEqualTo("cust1|subscription-dormant-policy|2020-01-01");
         assertThat(id1.uuid()).isNotNull();
 
         // Edge case: empty string
-        SubscriptionDormantPolicyWorkflow.EventId id2 = SubscriptionDormantPolicyWorkflow.EventId.generate("", "");
+        SubscriptionDormantPolicy.EventId id2 = SubscriptionDormantPolicy.EventId.generate("", "");
         assertThat(id2.naturalKey()).isEqualTo("|subscription-dormant-policy|");
 
         // Consistency check
-        SubscriptionDormantPolicyWorkflow.EventId id3 = SubscriptionDormantPolicyWorkflow.EventId.generate("cust1", "2020-01-01");
+        SubscriptionDormantPolicy.EventId id3 = SubscriptionDormantPolicy.EventId.generate("cust1", "2020-01-01");
         assertThat(id1.uuid()).isEqualTo(id3.uuid());
     }
 

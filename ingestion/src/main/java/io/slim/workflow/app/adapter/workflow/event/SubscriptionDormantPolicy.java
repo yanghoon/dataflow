@@ -16,15 +16,15 @@ import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
 
 
-public class DormantCustomerPolicyWorkflow extends AbstractPolicyWorkflow {
+public class SubscriptionDormantPolicy extends AbstractPolicy {
 
-    public DormantCustomerPolicyWorkflow(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
+    public SubscriptionDormantPolicy(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
         super(jdbcTemplate, objectMapper, resourceLoader);
     }
 
     @Override
     public String getType() {
-        return "dormant-customer-policy";
+        return "subscription-dormant-policy";
     }
 
     @Override
@@ -33,39 +33,41 @@ public class DormantCustomerPolicyWorkflow extends AbstractPolicyWorkflow {
         if (props == null) {
             props = Map.of();
         }
-        String status = props.getOrDefault("status", "ACTIVE");
-        String daysSinceLastLogin = props.getOrDefault("daysSinceLastLogin", "365");
+        
+        // Use thresholdDays for dynamic interval calculation
+        String thresholdDays = props.getOrDefault("thresholdDays", "30");
 
         MapSqlParameterSource sqlParams = new MapSqlParameterSource();
-        sqlParams.addValue("status", status);
-        sqlParams.addValue("daysSinceLastLogin", Integer.parseInt(daysSinceLastLogin));
+        sqlParams.addValue("thresholdDays", Integer.parseInt(thresholdDays));
         
         super.extractAndSaveEvents(jobSnapshot, sqlParams, this::toEvent);
     }
 
     protected record EventId(String naturalKey, String uuid) {
-        public static EventId generate(long customerId, String lastLoginDate) {
-            String naturalKey = customerId + "|dormant|" + lastLoginDate;
+        public static EventId generate(String customerId, String subscriptionDate) {
+            // CustomerId + "|" + PolicyName + "|" + SubscriptionDate
+            String naturalKey = customerId + "|subscription-dormant-policy|" + subscriptionDate;
             String uuid = UUID.nameUUIDFromBytes(naturalKey.getBytes(StandardCharsets.UTF_8)).toString();
             return new EventId(naturalKey, uuid);
         }
     }
 
     protected CloudEvent toEvent(ResultSet rs, CloudEventBuilder builder) throws Exception {
-        long customerId = rs.getLong("customer_id");
-        String currentStatus = rs.getString("status");
-        String lastLoginDateStr = rs.getString("last_login_date");
+        String customerId = rs.getString("customer_id");
+        String subscriptionDate = rs.getString("subscription_date");
+        String email = rs.getString("email");
 
-        EventId eventId = EventId.generate(customerId, lastLoginDateStr);
+        EventId eventId = EventId.generate(customerId, subscriptionDate);
 
         Map<String, Object> payload = Map.of(
                 "customerId", customerId,
-                "status", currentStatus
+                "subscriptionDate", subscriptionDate != null ? subscriptionDate : "",
+                "email", email != null ? email : ""
         );
 
         return builder
                 .withId(eventId.uuid())
-                .withSubject(String.valueOf(customerId))
+                .withSubject(customerId)
                 .withDataContentType("application/json")
                 .withData(objectMapper.writeValueAsBytes(payload))
                 .build();

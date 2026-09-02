@@ -35,13 +35,8 @@ public class WorkflowConfig {
     }
 
     @Bean
-    Workflow dormantCustomerPolicy(AutowireCapableBeanFactory factory) {
-        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.DormantCustomerPolicyWorkflow.class);
-    }
-
-    @Bean
     Workflow subscriptionDormantPolicy(AutowireCapableBeanFactory factory) {
-        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.SubscriptionDormantPolicyWorkflow.class);
+        return factory.createBean(io.slim.workflow.app.adapter.workflow.event.SubscriptionDormantPolicy.class);
     }
 
 

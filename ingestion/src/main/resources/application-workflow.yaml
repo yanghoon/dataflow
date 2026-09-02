@@ -75,3 +75,12 @@ workflow:
         daysSinceLastLogin: 30
         eventSource: urn:dataflow:customer-service
         eventType: com.dataflow.customer.inactive
+
+    subscription-dormant-policy-job:
+      type: subscription-dormant-policy
+      cron: 0 0 3 * * *
+      props:
+        thresholdDays: 30
+        sqlPath: classpath:sql/subscription_dormant_policy.sql
+        eventSource: urn:dataflow:policy-service
+        eventType: com.dataflow.subscription.dormant
