@@ -14,7 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
-
+import io.slim.workflow.domain.WorkflowJob;
+import io.slim.workflow.domain.WorkflowParams;
 
 public class SubscriptionDormantPolicy extends AbstractPolicy {
 
@@ -28,7 +29,7 @@ public class SubscriptionDormantPolicy extends AbstractPolicy {
     }
 
     @Override
-    public void execute(io.slim.workflow.domain.WorkflowJob jobSnapshot, io.slim.workflow.domain.WorkflowParams params) {
+    public void execute(WorkflowJob jobSnapshot, WorkflowParams params) {
         Map<String, String> props = jobSnapshot.props();
         if (props == null) {
             props = Map.of();

@@ -36,7 +36,7 @@ public abstract class AbstractPolicy implements Workflow {
     protected final ResourceLoader resourceLoader;
 
     public interface EventMapper {
-        io.cloudevents.CloudEvent map(java.sql.ResultSet rs, io.cloudevents.core.builder.CloudEventBuilder builder) throws Exception;
+        CloudEvent map(ResultSet rs, CloudEventBuilder builder) throws Exception;
     }
 
     protected void extractAndSaveEvents(WorkflowJob jobSnapshot, MapSqlParameterSource sqlParams, EventMapper mapper) {
