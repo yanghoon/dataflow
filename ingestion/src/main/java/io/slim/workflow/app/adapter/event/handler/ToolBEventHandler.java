@@ -17,7 +17,7 @@ public class ToolBEventHandler {
 
     private final Map<String, RestClient> restClients;
 
-    @EventListener(condition = "#event.type.startsWith('toolB.')")
+    @EventListener(condition = "#a0.type.startsWith('toolB.')")
     public void handle(CloudEvent event) {
         log.info("[ToolB] Received event: id={}, type={}", event.getId(), event.getType());
         String payload = "";

@@ -6,7 +6,7 @@ spring:
     password: postgres-local
   sql:
     init:
-      mode: alwqys
+      mode: always
       schemaLocations:
         - classpath:sql/schema/db_scheduler.sql
 

@@ -35,7 +35,7 @@ public class SubscriptionDormantPolicyWorkflowTest {
 
     @Container
     @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:alpine");
 
     @Autowired
     private SubscriptionDormantPolicyWorkflow workflow;

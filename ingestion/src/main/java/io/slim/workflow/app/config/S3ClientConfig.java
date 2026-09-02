@@ -31,6 +31,9 @@ public class S3ClientConfig {
 
     @Bean
     Map<String, S3Client> s3Clients() {
+        if (props.s3() == null) {
+            return java.util.Collections.emptyMap();
+        }
         return props.s3().entrySet().stream()
                     .collect(Collectors.toMap(
                         e -> e.getKey(),
