@@ -30,15 +30,15 @@ import io.slim.workflow.domain.WorkflowParams;
     "spring.sql.init.schemaLocations=classpath:sql/schema/db_scheduler.sql,classpath:sql/schema/customers/customers.sql,classpath:sql/schema/event_queue.sql,classpath:sql/schema/outbox_event.sql"
 })
 @Testcontainers
-@Import(SubscriptionDormantPolicyTest.TestConfig.class)
-public class SubscriptionDormantPolicyTest {
+@Import(DormantCustomerPolicyTest.TestConfig.class)
+public class DormantCustomerPolicyTest {
 
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:alpine");
 
     @Autowired
-    private SubscriptionDormantPolicy workflow;
+    private DormantCustomerPolicy workflow;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -55,16 +55,16 @@ public class SubscriptionDormantPolicyTest {
     @DisplayName("유닛테스트: 고유 Key 생성 로직 검증 (Edge Case)")
     void testEventIdGeneration() {
         // Normal case
-        SubscriptionDormantPolicy.EventId id1 = SubscriptionDormantPolicy.EventId.generate("cust1", "2020-01-01");
-        assertThat(id1.naturalKey()).isEqualTo("cust1|subscription-dormant-policy|2020-01-01");
+        DormantCustomerPolicy.EventId id1 = DormantCustomerPolicy.EventId.generate("cust1", "2020-01-01");
+        assertThat(id1.naturalKey()).isEqualTo("customer|DormantCustomerPolicy|cust1|2020-01-01");
         assertThat(id1.uuid()).isNotNull();
 
         // Edge case: empty string
-        SubscriptionDormantPolicy.EventId id2 = SubscriptionDormantPolicy.EventId.generate("", "");
-        assertThat(id2.naturalKey()).isEqualTo("|subscription-dormant-policy|");
+        DormantCustomerPolicy.EventId id2 = DormantCustomerPolicy.EventId.generate("", "");
+        assertThat(id2.naturalKey()).isEqualTo("customer|DormantCustomerPolicy||");
 
         // Consistency check
-        SubscriptionDormantPolicy.EventId id3 = SubscriptionDormantPolicy.EventId.generate("cust1", "2020-01-01");
+        DormantCustomerPolicy.EventId id3 = DormantCustomerPolicy.EventId.generate("cust1", "2020-01-01");
         assertThat(id1.uuid()).isEqualTo(id3.uuid());
     }
 
@@ -99,10 +99,10 @@ public class SubscriptionDormantPolicyTest {
         WorkflowJob job = new WorkflowJob(
             "job1",
             "test-workflow",
-            "subscription-dormant-policy",
+            "customer-dormant-policy",
             false,
             "1 * * * *",
-            Map.of("sqlPath", "classpath:sql/subscription_dormant_policy.sql", "thresholdDays", "20"),
+            Map.of("sqlPath", "classpath:sql/dormant_customer_policy.sql", "thresholdDays", "20"),
             java.util.Set.of()
         );
 
@@ -112,7 +112,7 @@ public class SubscriptionDormantPolicyTest {
         workflow.execute(job, emptyParams);
         
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM outbox_event", Integer.class);
-        // Expecting C1 and C3 to be matched by test_dormant.sql
+        // Expecting C1 and C3 to be matched by sql
         assertThat(count).isEqualTo(2);
 
         // 2nd Execution - Should not throw and count should remain same due to ON CONFLICT DO NOTHING

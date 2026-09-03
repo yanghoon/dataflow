@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import io.slim.workflow.app.adapter.workflow.csv.CsvExportWorkflow;
-import io.slim.workflow.app.adapter.workflow.event.SubscriptionDormantPolicy;
+import io.slim.workflow.app.adapter.workflow.event.DormantCustomerPolicy;
 import io.slim.workflow.domain.Workflow;
 import io.slim.workflow.domain.repo.WorkflowJobRepository;
 import io.slim.workflow.domain.repo.WorkflowRepository;
@@ -36,8 +36,8 @@ public class WorkflowConfig {
     }
 
     @Bean
-    Workflow subscriptionDormantPolicy(AutowireCapableBeanFactory factory) {
-        return factory.createBean(SubscriptionDormantPolicy.class);
+    Workflow dormantCustomerPolicy(AutowireCapableBeanFactory factory) {
+        return factory.createBean(DormantCustomerPolicy.class);
     }
 
 

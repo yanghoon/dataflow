@@ -1,10 +1,8 @@
 workflow:
   jobs:
-    subscription-dormant-policy-job:
-      type: subscription-dormant-policy
+    customer-dormant-policy-job:
+      type: customer-dormant-policy
       cron: "0 0 3 * * *"
       props:
         thresholdDays: "20"
-        sqlPath: "classpath:sql/subscription_dormant_policy.sql"
-        eventSource: "urn:dataflow:policy-service-test"
-        eventType: "com.dataflow.subscription.dormant.test"
+        sqlPath: "classpath:sql/dormant_customer_policy.sql"

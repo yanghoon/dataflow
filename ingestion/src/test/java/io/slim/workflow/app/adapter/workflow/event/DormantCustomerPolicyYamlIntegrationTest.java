@@ -29,8 +29,8 @@ import io.slim.workflow.domain.WorkflowParams;
     "spring.sql.init.schemaLocations=classpath:sql/schema/db_scheduler.sql,classpath:sql/schema/customers/customers.sql,classpath:sql/schema/event_queue.sql,classpath:sql/schema/outbox_event.sql"
 })
 @Testcontainers
-@Import(SubscriptionDormantPolicyYamlIntegrationTest.TestConfig.class)
-public class SubscriptionDormantPolicyYamlIntegrationTest {
+@Import(DormantCustomerPolicyYamlIntegrationTest.TestConfig.class)
+public class DormantCustomerPolicyYamlIntegrationTest {
 
     @Container
     @ServiceConnection
@@ -40,7 +40,7 @@ public class SubscriptionDormantPolicyYamlIntegrationTest {
     private WorkflowProperties workflowProperties;
 
     @Autowired
-    private SubscriptionDormantPolicy workflow;
+    private DormantCustomerPolicy workflow;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -82,12 +82,12 @@ public class SubscriptionDormantPolicyYamlIntegrationTest {
         jdbcTemplate.execute("INSERT INTO customers (snapshot_date, system_id, index_id, customer_id, first_name, last_name, subscription_date, email) VALUES (CURRENT_DATE, 'sys2', 2, 'C2', 'Jane', 'Doe', CURRENT_DATE - INTERVAL '10 days', 'jane@test.com')");
 
         // 2. Fetch job configuration from YAML properties
-        WorkflowJob job = workflowProperties.jobs().get("subscription-dormant-policy-job");
+        WorkflowJob job = workflowProperties.jobs().get("customer-dormant-policy-job");
         assertThat(job).isNotNull();
-        assertThat(job.type()).isEqualTo("subscription-dormant-policy");
+        assertThat(job.type()).isEqualTo("customer-dormant-policy");
         assertThat(job.cron()).isEqualTo("0 0 3 * * *");
         assertThat(job.props().get("thresholdDays")).isEqualTo("20");
-        assertThat(job.props().get("eventSource")).isEqualTo("urn:dataflow:policy-service-test");
+        assertThat(job.props().get("sqlPath")).isEqualTo("classpath:sql/dormant_customer_policy.sql");
 
         // 3. Execute the workflow with the loaded job config
         WorkflowParams emptyParams = new WorkflowParams(Map.of());

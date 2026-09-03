@@ -22,11 +22,9 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 
 @SpringBootTest(classes = {
-    ToolAEventHandler.class,
-    ToolBEventHandler.class,
+    CustomerEventHandler.class,
     EventListenerIntegrationTest.Config.class
 })
 @ActiveProfiles("test")
@@ -36,13 +34,10 @@ class EventListenerIntegrationTest {
     private ApplicationEventPublisher publisher;
 
     @MockitoSpyBean
-    private ToolAEventHandler toolAEventHandler;
-
-    @MockitoSpyBean
-    private ToolBEventHandler toolBEventHandler;
+    private CustomerEventHandler customerEventHandler;
 
     @TestConfiguration
-    @EnableTransactionManagement // Enable AOP to wrap beans in proxies, reproducing the runtime env
+    @EnableTransactionManagement
     static class Config {
         @Bean
         @Primary
@@ -57,7 +52,7 @@ class EventListenerIntegrationTest {
         CloudEvent eventA = CloudEventBuilder.v1()
                 .withId("event-1")
                 .withSource(URI.create("/test"))
-                .withType("toolA.test")
+                .withType("customer.suspend.account")
                 .withTime(OffsetDateTime.now())
                 .build();
 
@@ -73,10 +68,7 @@ class EventListenerIntegrationTest {
         publisher.publishEvent(eventB);
 
         // Assert
-        verify(toolAEventHandler).handle(eventA);
-        verify(toolAEventHandler, never()).handle(eventB);
-
-        verify(toolBEventHandler).handle(eventB);
-        verify(toolBEventHandler, never()).handle(eventA);
+        verify(customerEventHandler).handle(eventA);
+        verify(customerEventHandler, never()).handle(eventB);
     }
 }

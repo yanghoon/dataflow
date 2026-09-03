@@ -17,15 +17,15 @@ import io.cloudevents.core.builder.CloudEventBuilder;
 import io.slim.workflow.domain.WorkflowJob;
 import io.slim.workflow.domain.WorkflowParams;
 
-public class SubscriptionDormantPolicy extends AbstractPolicy {
+public class DormantCustomerPolicy extends AbstractPolicy {
 
-    public SubscriptionDormantPolicy(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
+    public DormantCustomerPolicy(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
         super(jdbcTemplate, objectMapper, resourceLoader);
     }
 
     @Override
     public String getType() {
-        return "subscription-dormant-policy";
+        return "customer-dormant-policy";
     }
 
     @Override
@@ -46,8 +46,7 @@ public class SubscriptionDormantPolicy extends AbstractPolicy {
 
     protected record EventId(String naturalKey, String uuid) {
         public static EventId generate(String customerId, String subscriptionDate) {
-            // CustomerId + "|" + PolicyName + "|" + SubscriptionDate
-            String naturalKey = customerId + "|subscription-dormant-policy|" + subscriptionDate;
+            String naturalKey = "customer|DormantCustomerPolicy|" + customerId + "|" + subscriptionDate;
             String uuid = UUID.nameUUIDFromBytes(naturalKey.getBytes(StandardCharsets.UTF_8)).toString();
             return new EventId(naturalKey, uuid);
         }
@@ -67,6 +66,8 @@ public class SubscriptionDormantPolicy extends AbstractPolicy {
         );
 
         return builder
+                .withSource(java.net.URI.create("urn:dataflow:policy:customer:dormant"))
+                .withType("customer.suspend.account")
                 .withId(eventId.uuid())
                 .withSubject(customerId)
                 .withDataContentType("application/json")
