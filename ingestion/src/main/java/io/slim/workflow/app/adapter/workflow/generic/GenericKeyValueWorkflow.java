@@ -26,4 +26,9 @@ public class GenericKeyValueWorkflow implements Workflow {
         }
     }
 
+    @Override
+    public void validate(WorkflowJob job, WorkflowParams overrideParams) {
+        // No specific validation required for generic key-value
+    }
+
 }

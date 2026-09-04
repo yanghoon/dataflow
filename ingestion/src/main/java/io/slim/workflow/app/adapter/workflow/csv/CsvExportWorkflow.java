@@ -63,6 +63,11 @@ public class CsvExportWorkflow implements Workflow {
         }
     }
 
+    @Override
+    public void validate(WorkflowJob job, WorkflowParams overrideParams) {
+        CsvExportContext.of(job, overrideParams);
+    }
+
     // ① 원본 조회 → 로컬 CSV 파일 생성
     // 책임: where.endpoint에서 데이터 조회, targetDate 등 WorkflowParams 반영
     private void exportToCsv(CsvExportContext ctx, WorkflowParams params) {

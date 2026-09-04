@@ -35,6 +35,11 @@ public abstract class AbstractPolicy implements Workflow {
     protected final ObjectMapper objectMapper;
     protected final ResourceLoader resourceLoader;
 
+    @Override
+    public void validate(WorkflowJob job, WorkflowParams overrideParams) {
+        // TODO: 구현 필요 (현재 빈 로직)
+    }
+
     public interface EventMapper {
         CloudEvent map(ResultSet rs, CloudEventBuilder builder) throws Exception;
     }

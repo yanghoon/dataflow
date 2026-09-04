@@ -1,6 +1,10 @@
 package io.slim.workflow.app.adapter.scheduler;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -14,7 +18,8 @@ import com.github.kagkarlsson.scheduler.task.helper.RecurringTaskWithPersistentS
 import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 
 import io.slim.workflow.domain.WorkflowLauncher;
-import io.slim.workflow.domain.WorkflowLauncher.WorkflowLauncherImpl;
+import io.slim.workflow.domain.WorkflowLauncherImpl;
+import io.slim.workflow.domain.WorkflowParams;
 import lombok.extern.slf4j.Slf4j;
 
 @Configuration
@@ -65,16 +70,16 @@ public class WorkflowSchedulerConfig {
     }
 
     @Bean
-    public Task<java.util.HashMap> workflowAdhocTask(WorkflowLauncher workflowLauncher) {
-        return Tasks.oneTime("workflowjob-adhoc", java.util.HashMap.class)
+    public Task<HashMap> workflowAdhocTask(WorkflowLauncher workflowLauncher) {
+        return Tasks.oneTime("workflowjob-adhoc", HashMap.class)
             .execute((taskInstance, ctx) -> {
-                java.util.Map data = taskInstance.getData();
+                Map data = taskInstance.getData();
                 String jobName = (String) data.get("jobName");
                 @SuppressWarnings("unchecked")
-                java.util.Map<String, String> params = (java.util.Map<String, String>) data.get("overrideParams");
+                Map<String, String> params = (Map<String, String>) data.get("overrideParams");
                 
                 log.info("[ADHOC-EXECUTE] jobName={} 파라미터={} 실행 시작", jobName, params);
-                workflowLauncher.launch(jobName, new io.slim.workflow.domain.WorkflowParams(params != null ? params : java.util.Map.of()));
+                workflowLauncher.launch(jobName, new WorkflowParams(params != null ? params : Map.of()));
                 log.info("[ADHOC-EXECUTE] jobName={} 실행 종료", jobName);
             });
     }
@@ -91,8 +96,8 @@ public class WorkflowSchedulerConfig {
     public CommandLineRunner scheduleTestTask(Scheduler scheduler, Task<Void> simpleTestTask) {
         return args -> {
             try {
-                String instanceId = "instance-" + java.util.UUID.randomUUID().toString();
-                scheduler.schedule(simpleTestTask.instance(instanceId), java.time.Instant.now().plusSeconds(5));
+                String instanceId = "instance-" + UUID.randomUUID().toString();
+                scheduler.schedule(simpleTestTask.instance(instanceId), Instant.now().plusSeconds(5));
                 log.info("Scheduled simple-one-time-task with id: {}", instanceId);
             } catch (Exception e) {
                 log.info("Error scheduling simple-one-time-task: {}", e.getMessage());

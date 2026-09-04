@@ -58,6 +58,7 @@ dependencies {
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-webmvc-test")
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.xerial:sqlite-jdbc")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

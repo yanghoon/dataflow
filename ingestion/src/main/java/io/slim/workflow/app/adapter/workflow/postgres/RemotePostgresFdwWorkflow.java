@@ -44,6 +44,11 @@ public class RemotePostgresFdwWorkflow implements Workflow {
         }
     }
 
+    @Override
+    public void validate(WorkflowJob job, WorkflowParams overrideParams) {
+        PostgresFdwContext.of(job, overrideParams);
+    }
+
     // ① 원격 테이블 매핑/접근 권한 사전 검증
     // 책임: where.foreignTable이 postgres_fdw로 정상 연결되는지,
     //       스키마 drift(컬럼 변경) 여부 확인 — 실패 시 이후 단계 진입 차단
