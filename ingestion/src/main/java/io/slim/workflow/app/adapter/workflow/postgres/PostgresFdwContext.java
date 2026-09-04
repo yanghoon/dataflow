@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import io.slim.workflow.domain.WorkflowJob;
+import io.slim.workflow.domain.WorkflowParams;
+import io.slim.workflow.domain.utils.WorkflowPropsBinder;
 import lombok.Data;
 import lombok.Setter;
 
@@ -16,9 +18,8 @@ public class PostgresFdwContext {
     @Setter private WorkflowJob job;
     @Setter private long copyCount;
 
-    static PostgresFdwContext of(WorkflowJob job) {
-        var binder = new Binder(new MapConfigurationPropertySource(job.props()));
-        var context = binder.bindOrCreate("", PostgresFdwContext.class);
+    static PostgresFdwContext of(WorkflowJob job, WorkflowParams params) {
+        var context = WorkflowPropsBinder.bind(job, params, PostgresFdwContext.class);
         context.setJob(job);
         return context;
     }

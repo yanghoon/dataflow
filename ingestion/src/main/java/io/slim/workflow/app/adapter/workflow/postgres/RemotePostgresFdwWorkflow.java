@@ -30,7 +30,7 @@ public class RemotePostgresFdwWorkflow implements Workflow {
     public void execute(WorkflowJob job, WorkflowParams params) {
         try {
             // 전체 절차 오케스트레이션, 세부는 private method(향후 Step)에 위임
-            var context = PostgresFdwContext.of(job);
+            var context = PostgresFdwContext.of(job, params);
             verifyForeignTable(context);
             insertIntoSnapshotTable(context);
             // String stagingTable = copyViaFdw(context, params);

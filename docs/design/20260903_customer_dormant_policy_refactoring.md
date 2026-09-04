@@ -1,7 +1,7 @@
-# 메시징 네이밍 및 라우팅 설계 스펙
+# Customer Dormant Policy 리팩토링 설계 스펙
 
 ## 목표
-DDD(Domain-Driven Design) 스타일의 이벤트 및 커맨드 명명 규칙을 수립하고, CloudEvent 표준을 확장하여 멀티 오픈소스(tool)와 멀티 인스턴스(instanceId) 환경을 명확히 식별한다. `outbox_messages` 테이블을 통한 안정적인 메시징과, 향후 Kafka 도입 시 Topic 및 Partition Key 매핑을 고려한 아키텍처를 설계한다.
+DDD(Domain-Driven Design) 스타일의 이벤트 및 커맨드 명명 규칙을 수립하고, CloudEvent 표준을 확장하여 멀티 오픈소스(tool)와 단일 도메인(Customer) 환경을 명확히 식별하도록 기존 코드를 리팩토링한다. `outbox_messages` 테이블을 활용하여, 향후 Kafka 도입 시 Topic 및 Partition Key 매핑을 고려한 아키텍처로 개선한다.
 
 ## 배경 / 기존 컨텍스트
 - **참조한 기존 패턴**: `outbox_messages`를 통한 이벤트 적재 및 기존 `CloudEvent` 포맷 발행 패턴, 기존 설계(`20260901_subscription_dormant_policy.md`, `20260902_outbox_failure_handling.md`).
@@ -42,15 +42,56 @@ DDD(Domain-Driven Design) 스타일의 이벤트 및 커맨드 명명 규칙을 
 
 향후 Kafka 전환 시 "CloudEvents Kafka Protocol Binding"의 **Binary Mode** 디팩토 표준을 준수하며, 각 필드는 인프라 관점에서 다음과 같은 명확한 목적과 매핑 규칙을 갖습니다.
 
-| CE 필드명 | 값 예시 | 비즈니스 목적 | Kafka 매핑 (Binary Mode) |
+| CE 필드명 | 값 예시 (Gitea / Customer) | 비즈니스 목적 | Kafka 매핑 (Binary Mode) |
 |---|---|---|---|
-| **`id`** | `gitea\|DormantCustomerPolicy\|gitea-prod-1\|CUST-123\|2026-03-01` | **Idempotency Key (멱등성 보장)**: 수신측에서 중복 수신 시 무시하기 위한 고유키. | `ce_id` Header |
-| **`type`** | `gitea.suspend.user` | **Routing & Filtering**: 의도(Command/Event) 표현. 첫 번째 세그먼트(`gitea`)를 파싱하여 타겟 결정. | `ce_type` Header.<br>※ 어플리케이션이 이 값을 파싱하여 전송할 **Kafka Topic**(`gitea`)을 동적으로 결정함. |
-| **`source`** | `urn:dataflow:policy:gitea:dormant` | **Origin Tracking (출처 식별)**: 장애 발생 및 CS 인입 시 어느 도메인/배치에서 발생시켰는지 즉각 식별. | `ce_source` Header |
-| **`subject`** | `gitea-prod-1\|CUST-123` (멀티 인스턴스)<br>`CUST-123` (단일 인스턴스) | **Target & Partitioning**: 타겟 구성에 따른 식별자. 단일 인스턴스(예: `customer`)는 도메인 ID만 사용. | `ce_subject` Header.<br>※ 이 값을 추출하여 **Kafka Record Key**에 바인딩하여 파티션 순서 보장. |
-| **`data`** | `{"instanceId":"gitea-prod-1", "thresholdDays":180, ...}` | **Domain Payload**: 라우팅 정보를 배제한 순수 비즈니스 데이터. 단, 워커의 편의를 위해 `instanceId`는 본문에도 포함. | **Kafka Record Value** (JSON 등 바디) |
+| **`id`** | `gitea\|DormantCustomerPolicy\|gitea-prod-1\|CUST-123\|2026-03-01`<br>`customer\|DormantCustomerPolicy\|CUST-123\|2026-03-01` | **Idempotency Key (멱등성 보장)**: 수신측에서 중복 수신 시 무시하기 위한 고유키. | `ce_id` Header |
+| **`type`** | `gitea.suspend.user`<br>`customer.suspend.account` | **Routing & Filtering**: 의도(Command/Event) 표현. 첫 번째 세그먼트를 파싱하여 타겟 결정. | `ce_type` Header.<br>※ 어플리케이션이 이 값을 파싱하여 전송할 **Kafka Topic**을 동적으로 결정함. |
+| **`source`** | `urn:dataflow:policy:gitea:dormant`<br>`urn:dataflow:policy:customer:dormant` | **Origin Tracking (출처 식별)**: 장애 발생 및 CS 인입 시 어느 도메인/배치에서 발생시켰는지 즉각 식별. | `ce_source` Header |
+| **`subject`** | `gitea-prod-1\|CUST-123` (멀티 인스턴스)<br>`CUST-123` (단일 도메인) | **Target & Partitioning**: 타겟 구성에 따른 식별자. 단일 인스턴스(예: `customer`)는 도메인 ID만 사용. | `ce_subject` Header.<br>※ 이 값을 추출하여 **Kafka Record Key**에 바인딩하여 파티션 순서 보장. |
+| **`data`** | `{"instanceId":"gitea-prod-1", "thresholdDays":180, ...}`<br>`{"customerId":"CUST-123", "subscriptionDate":"2020-01-01"}` | **Domain Payload**: 라우팅 정보를 배제한 순수 비즈니스 데이터. 단, 워커의 편의를 위해 멀티 인스턴스는 `instanceId`를 본문에도 포함. | **Kafka Record Value** (JSON 등 바디) |
 
 ※ 주의: CloudEvents 스펙은 Protocol-Agnostic 하므로 `ce_topic` 같은 커스텀 필드를 만들어 토픽 이름을 강제 명시하는 것은 안티 패턴입니다. Topic은 반드시 `type` (또는 `source`) 값을 기반으로 발행자(Publisher) 애플리케이션 단에서 결정해야 합니다.
+
+## 이벤트 소비 (Poller & Handler) 구조 설계
+
+이벤트 적재(`outbox_event`) 후 소비 과정은 다음과 같이 설계한다.
+
+### 1. 통합 Poller(JDBC Event Poller) 운용
+- **타입에 무관한 단일 Poller**: 기존에 `type`별로(예: `toolA.%`, `toolB.%`) 분리되어 있던 Poller를 제거하고, `outbox_event`에서 `type`과 무관하게 `READY` 상태인 모든 이벤트를 조회하는 단일(Unified) `JdbcEventMessagePoller` 1개만 운용한다.
+- **장점**: 새로운 도메인이나 툴이 추가되더라도 Poller(인프라) 설정을 변경할 필요가 없다.
+
+### 2. Spring ApplicationEventPublisher 기반 분배
+- 단일 Poller는 읽어온 CloudEvent를 Spring의 `ApplicationEventPublisher`를 통해 브로드캐스팅한다.
+- `@EventListener(condition = "#a0.type.startsWith('customer.')")`와 같이 조건부 리스너를 통해 각 핸들러(Handler)가 자신이 관심 있는 이벤트만 선택적으로 처리한다.
+- 불필요했던 기존 `ToolA`, `ToolB` 핸들러는 삭제하고, `CustomerEventHandler` 단 1개만 유지 및 구성한다.
+
+### 3. 미매칭 이벤트(No matching listener) 처리 주의사항
+- Spring Event 메커니즘 특성상 발행된 이벤트에 매칭되는 `@EventListener`가 없더라도 에러가 발생하지 않는다.
+- 이 경우 Poller는 예외를 받지 못하므로 정상 처리된 것으로 간주하고 DB 상태를 `DONE`으로 변경하게 되며, 결과적으로 핸들러가 없는 **이벤트가 유실(Silent Drop)**되는 현상이 발생한다.
+- **설계적 보완/주의**: 이를 인지하고 개발 시 새로운 `type` 발행에 맞는 핸들러가 반드시 존재하는지 확인해야 하며, 추후 인프라 레벨에서 미매칭 이벤트를 로깅(Catch-all)하거나 데드레터(DLQ) 처리하는 방안을 고려할 수 있다.
+
+## 구현 범위 및 리팩토링 체크리스트
+
+위 설계에 따라 실제 코드를 수정해야 할 범위는 다음과 같다.
+
+### 1. 클래스 및 파일명 변경 (Naming)
+- **Java**: `SubscriptionDormantPolicy.java` ➡️ `DormantCustomerPolicy.java`
+- **Tests**: `SubscriptionDormantPolicyTest`, `SubscriptionDormantPolicyYamlIntegrationTest` ➡️ `DormantCustomerPolicy...` 로 변경
+- **SQL**: `src/main/.../sql/` 및 `src/test/.../sql/` 하위의 `subscription_dormant_policy.sql` ➡️ `dormant_customer_policy.sql` 로 변경
+
+### 2. Policy 비즈니스 로직 수정 (CloudEvent 매핑)
+기존 `AbstractPolicy`가 외부(YAML) 설정에 의존하던 결합을 끊고, Policy 내부에서 명시적으로 제어한다.
+- **`getType()` 반환값**: `"subscription-dormant-policy"` ➡️ `"customer-dormant-policy"`
+- **`EventId.generate()` 식별자 로직**: `targetDomain`("customer")을 조합하여 `customer|DormantCustomerPolicy|{customerId}|{subscriptionDate}` 포맷 생성.
+- **`toEvent()` 오버라이드**: YAML의 `eventSource`, `eventType` 속성을 배제하고, `builder`에 직접 `source`(`urn:dataflow:policy:customer:dormant`), `type`(`customer.suspend.account`), `subject`(`customerId`)를 명시적으로 세팅.
+
+### 3. YAML 설정 점검 및 수정
+- `application-workflow.yaml` 및 `application-dormant-policy.yml`에서 Job 이름을 `customer-dormant-policy-job`으로 변경.
+- CloudEvent 매핑에 사용되던 불필요한 속성(`eventSource`, `eventType`) 삭제 및 `sqlPath` 업데이트.
+
+### 4. Consumer (Poller & Handler) 리팩토링
+- **`EventPollerConfig.java`**: 기존 `toolAPoller()`, `toolBPoller()`를 제거하고, `type` 조건 없이 모든 READY 상태 이벤트를 읽어오는 단일 `unifiedPoller()` 생성 및 스케줄 등록.
+- **Handler 클래스**: 쓸모없는 `ToolAEventHandler`, `ToolBEventHandler` 삭제. 대신 `customer.suspend.account` 커맨드를 수신할 `CustomerEventHandler` 뼈대(Scaffolding) 신규 생성.
 
 ## 완료 조건 (자가검증)
 - [ ] 컴파일/빌드 통과

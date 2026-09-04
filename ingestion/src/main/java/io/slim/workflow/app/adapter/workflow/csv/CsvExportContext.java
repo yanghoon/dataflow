@@ -2,13 +2,9 @@ package io.slim.workflow.app.adapter.workflow.csv;
 
 import java.nio.file.Path;
 
-import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
-
 import io.slim.workflow.domain.WorkflowJob;
 import io.slim.workflow.domain.WorkflowParams;
-import java.util.Map;
-import java.util.HashMap;
+import io.slim.workflow.domain.utils.WorkflowPropsBinder;
 import lombok.Data;
 import lombok.Setter;
 
@@ -24,16 +20,7 @@ public class CsvExportContext {
     @Setter private long copyCount;
 
     static CsvExportContext of(WorkflowJob job, WorkflowParams params) {
-        Map<String, String> mergedProps = new HashMap<>();
-        if (job.props() != null) {
-            mergedProps.putAll(job.props());
-        }
-        if (params != null && params.values() != null) {
-            mergedProps.putAll(params.values());
-        }
-
-        var binder = new Binder(new MapConfigurationPropertySource(mergedProps));
-        var context = binder.bindOrCreate("", CsvExportContext.class);
+        var context = WorkflowPropsBinder.bind(job, params, CsvExportContext.class);
         context.setJob(job);
         return context;
     }

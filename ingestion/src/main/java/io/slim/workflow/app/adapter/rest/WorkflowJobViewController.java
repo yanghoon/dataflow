@@ -2,13 +2,21 @@ package io.slim.workflow.app.adapter.rest;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.github.kagkarlsson.scheduler.SchedulerClient;
+import com.github.kagkarlsson.scheduler.task.TaskInstance;
 import com.github.kagkarlsson.scheduler.task.TaskInstanceId;
 
 import io.slim.workflow.app.config.workflow.WorkflowProperties;
@@ -37,21 +45,23 @@ public class WorkflowJobViewController {
                 spec.name(), spec.group(), spec.type(), spec.cron(),
                 spec.enabled(),
                 scheduled.map(e -> e.getExecutionTime()).orElse(null),
-                scheduled.map(e -> e.isPicked()).orElse(false)
+                scheduled.map(e -> e.isPicked()).orElse(false),
+                spec.allowedOverrides(),
+                spec.props()
             ));
         }
         return views;
     }
 
-    @org.springframework.web.bind.annotation.PostMapping("/{jobName}/run")
-    public void runAdhoc(
-        @org.springframework.web.bind.annotation.PathVariable String jobName,
-        @org.springframework.web.bind.annotation.RequestBody(required = false) java.util.Map<String, String> overrideParams
+    @PostMapping("/{jobName}/run")
+    public RunAdhocResponse runAdhoc(
+        @PathVariable String jobName,
+        @RequestBody(required = false) Map<String, String> overrideParams
     ) {
         WorkflowJob job = yamlJobs.jobs().get(jobName);
         if (job == null) throw new IllegalArgumentException("Unknown job: " + jobName);
 
-        java.util.Set<String> allowed = job.allowedOverrides() != null ? job.allowedOverrides() : java.util.Set.of();
+        Set<String> allowed = job.allowedOverrides() != null ? job.allowedOverrides() : Set.of();
         if (overrideParams != null) {
             for (String key : overrideParams.keySet()) {
                 if (!allowed.contains(key)) {
@@ -60,28 +70,32 @@ public class WorkflowJobViewController {
             }
         }
 
-        java.util.Map<String, String> finalMergedParams = new java.util.HashMap<>(job.props() != null ? job.props() : java.util.Map.of());
+        Map<String, String> finalMergedParams = new HashMap<>(job.props() != null ? job.props() : Map.of());
         if (overrideParams != null) {
             finalMergedParams.putAll(overrideParams);
         }
 
-        java.util.HashMap<String, Object> taskData = new java.util.HashMap<>();
+        HashMap<String, Object> taskData = new HashMap<>();
         taskData.put("jobName", jobName);
         taskData.put("overrideParams", overrideParams);
         taskData.put("finalMergedParams", finalMergedParams);
 
-        String instanceId = "adhoc-" + jobName + "-" + java.util.UUID.randomUUID();
-        com.github.kagkarlsson.scheduler.task.TaskInstance<java.util.HashMap> instance = 
-            new com.github.kagkarlsson.scheduler.task.TaskInstance<>(
-                "workflowjob-adhoc", 
-                instanceId, 
-                taskData
-            );
+        String instanceId = "adhoc-" + jobName + "-" + UUID.randomUUID();
+        TaskInstance<HashMap> instance = new TaskInstance<>(
+            "workflowjob-adhoc", 
+            instanceId, 
+            taskData
+        );
         schedulerClient.schedule(instance, Instant.now());
+        
+        return new RunAdhocResponse(instanceId);
     }
 }
 
 record WorkflowJobView(
     String jobName, String group, String workflowType, String cronExpression,
-    boolean enabled, Instant nextExecutionTime, boolean running
+    boolean enabled, Instant nextExecutionTime, boolean running,
+    Set<String> allowedOverrides, Map<String, String> props
 ) {}
+
+record RunAdhocResponse(String taskInstanceId) {}
