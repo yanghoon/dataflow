@@ -1,0 +1,38 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: dataflow-ingestion
+
+build:
+  # local:
+  #   push: true
+  tagPolicy:
+    gitCommit:
+  artifacts:
+    - image: dataflow-ingestion
+      jib:
+        project: ingestion
+        # args:
+        #   - -DsendCredentialsOverHttp=true
+      # custom:
+      #   buildCommand: ../build.sh
+
+manifests:
+  kustomize:
+    paths:
+      - k8s/base
+
+deploy:
+  kubectl:
+
+# resourceSelector:
+#   allow:
+#     - groupKind: CustomResource.your
+#       image: [".*"]
+
+profiles:
+  - name: prod-site-a
+    manifests:
+      kustomize:
+        paths:
+          - k8s/overlays/prod-site-a

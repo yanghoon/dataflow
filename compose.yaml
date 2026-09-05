@@ -10,6 +10,7 @@ services:
       - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql
+      - ./ingestion/src/main/resources/sql/schema:/docker-entrypoint-initdb.d
   
   minio:
     image: docker.io/minio/minio:latest

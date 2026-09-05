@@ -1,6 +1,6 @@
 package io.slim.ingestion.batch;
 
-import io.slim.ingestion.batch.service.JobTriggerService;
+import io.slim.ingestion.batch.v2.app.service.JobTriggerService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;

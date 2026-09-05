@@ -11,14 +11,14 @@ import org.springframework.http.HttpStatus;
 import io.slim.ingestion.batch.job.step.s3.SourceConfig;
 import io.slim.ingestion.batch.job.step.s3.SourceStream;
 
-public class HttpSourceStream implements SourceStream {
+public class HttpSourceStreamV2 implements SourceStream {
 
     private final SourceConfig config;
     // private BiFunction<SourceConfig, HttpURLConnection, Boolean> vaildator;
     private HttpResponseValidator validator;
     private HttpURLConnection conn;
 
-    public HttpSourceStream(
+    public HttpSourceStreamV2(
         SourceConfig config,
         // BiFunction<SourceConfig, HttpURLConnection, Boolean> vaildator
         HttpResponseValidator validator

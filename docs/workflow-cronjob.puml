@@ -1,0 +1,90 @@
+@startuml
+
+skinparam rectangle {
+    BackgroundColor<<Command>> LightBlue
+    BackgroundColor<<Event>> Orange
+    BackgroundColor<<Policy>> Lavender
+    BackgroundColor<<Aggregate>> LightYellow
+    BackgroundColor<<ReadModel>> LightGreen
+    BackgroundColor<<ExternalSystem>> LightGray
+    BackgroundColor<<Assumption>> Pink
+}
+skinparam note {
+    BackgroundColor LightGreen
+    BorderColor Black
+}
+skinparam package {
+    BorderStyle dashed
+    BorderColor Gray
+}
+'skinparam ranksep 30
+'skinparam nodesep 20
+
+actor "Admin" as admin
+actor "Admin" as admin3
+
+' --- Manage TaskInstance ---
+rectangle "ApplyWorkflowJob" <<Command>> as cmd_manage
+rectangle "WorkflowJob" <<Aggregate>> as agg_job
+rectangle "WorkflowJobChanged" <<Event>> as evt_job_changed
+
+admin -> cmd_manage
+cmd_manage -> agg_job
+agg_job -> evt_job_changed
+
+' layout
+admin -[hidden]down- admin3
+
+rectangle {
+  
+  ' Register TaskInstance
+  rectangle {
+    rectangle "Apply CronJob" <<Policy>> as policy_apply_cron
+    rectangle "ApplyCronJob" <<Command>> as cmd_apply_cron
+    rectangle "Kubernetes" <<ExternalSystem>> as ext_scheduler
+    rectangle "CronJobChanged" <<Event>> as evt_cron_changed
+    
+    policy_apply_cron -right-> cmd_apply_cron
+    cmd_apply_cron -right-> ext_scheduler
+    ext_scheduler -right-> evt_cron_changed
+  }
+  
+  ' Schedule TaskInstance
+  rectangle {
+    rectangle "Kubernetes" <<ExternalSystem>> as ext_scheduler2
+    rectangle "CronJobScheduled" <<Event>> as evt_scheduled
+    
+    ext_scheduler2 -right-> evt_scheduled
+  }
+  
+  ' Job Console
+  rectangle {
+    'together {
+      rectangle "CronJob / Job" <<ReadModel>> as model_cron
+      'rectangle "Job" <<ReadModel>> as model_job
+    '}
+    rectangle "Kubernetes" <<ExternalSystem>> as ext_scheduler3
+    
+    ext_scheduler3 -left-> model_cron
+    model_cron -> admin3: kubectl get cronjobs\nkubectl logs jobs
+    
+    admin3 -[dashed]right-> ext_scheduler2: kubectl create job --from=cronjob...
+    
+    'ext_scheduler3 -left-> model_job
+    'model_job -> admin3
+    'model_cron -[hidden]down- model_job
+  }
+
+  ' for layout
+  ext_scheduler -[hidden]down- ext_scheduler2
+  ext_scheduler2 -[hidden]down- ext_scheduler3
+}
+
+evt_job_changed -[#gray,dashed]right-> policy_apply_cron
+
+' --- Due 시점 → 별도 다이어그램 경계 ---
+rectangle "Schedule CronJob" <<Policy>> as policy_schedule_boundary
+
+evt_scheduled -> policy_schedule_boundary
+
+@enduml

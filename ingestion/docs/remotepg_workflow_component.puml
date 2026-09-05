@@ -1,0 +1,31 @@
+@startuml remotepg_workflow_component
+!include <C4/C4_Component>
+
+left to right direction
+
+title Component Diagram for Remote PostgreSQL FDW Workflow
+
+Container(scheduler, "Scheduler", "Scheduling Engine", "Triggers jobs by jobName")
+
+Container_Boundary(batch_app, "Batch App") {
+    Component(job_store, "Job Store", "In-memory Map", "Looks up jobs by jobName")
+    Component(launcher, "Workflow Launcher", "Java / Spring", "Resolves job and starts workflow")
+    Component(workflow, "Remote PostgreSQL Workflow", "Java / Spring Boot", "Validates FDW and writes snapshot")
+    Component(jdbc, "Database Client", "Spring JDBC", "Executes validation and snapshot SQL")
+}
+
+ContainerDb(postgres_db, "Database", "PostgreSQL / postgres_fdw", "Local tables and foreign tables")
+System_Ext(workflow_yaml, "Workflow YAML", "application-workflow.yaml", "Defines jobName, cron, and workflow settings")
+System_Ext(remote_pg, "Remote PostgreSQL", "PostgreSQL Protocol", "Source data exposed through FDW")
+
+Rel_R(workflow_yaml, job_store, "Loads workflow jobs", "YAML")
+Rel_R(scheduler, launcher, "Triggers with jobName", "Job execution")
+Rel_R(launcher, job_store, "Lookup by jobName", "In-process")
+Rel_R(launcher, workflow, "Dispatches postgres-fdw", "In-process")
+
+Rel_R(workflow, jdbc, "1. verifyForeignTable()\n3. insertSnapshot()", "Method")
+Rel_R(jdbc, postgres_db, "2. SELECT 1 ... LIMIT 1\n4. INSERT INTO ... SELECT", "JDBC / SQL")
+Rel_R(postgres_db, remote_pg, "Reads foreign table", "postgres_fdw")
+
+SHOW_LEGEND()
+@enduml
