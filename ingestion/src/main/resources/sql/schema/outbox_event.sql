@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS outbox_event (
     time TIMESTAMP WITH TIME ZONE NOT NULL,-- CloudEvent 발생 시각
     data JSONB,                            -- CloudEvent data (본문 JSON)
     extensions JSONB,                      -- CloudEvent 커스텀 확장 필드
-    status VARCHAR(20) NOT NULL DEFAULT 'READY', -- 상태: READY, DONE, FAILED 등
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'SENT', 'CONFIRMED', 'RETRY_PENDING', 'FAILED', 'CANCELLED')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (source, id)               -- CloudEvents 스펙상 고유성 보장
@@ -22,4 +22,4 @@ ON outbox_event (status, type);
 -- 재시도 대기중인 이벤트를 빠르게 조회하기 위한 부분 인덱스
 CREATE INDEX IF NOT EXISTS idx_outbox_ready_retry 
 ON outbox_event ((extensions->>'next_retry_at')) 
-WHERE status = 'READY';
+WHERE status = 'RETRY_PENDING';

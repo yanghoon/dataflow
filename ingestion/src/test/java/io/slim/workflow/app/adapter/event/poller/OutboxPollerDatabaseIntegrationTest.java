@@ -1,4 +1,4 @@
-package io.slim.workflow.app.adapter.event;
+package io.slim.workflow.app.adapter.event.poller;
 
 import io.slim.workflow.app.config.event.EventPollerConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.atLeastOnce;
+import io.slim.workflow.app.adapter.event.poller.JdbcEventMessagePoller;
+
 
 @SpringBootTest(properties = {
     "spring.sql.init.schemaLocations=classpath:sql/schema/outbox_event.sql"
@@ -69,7 +71,7 @@ class OutboxPollerDatabaseIntegrationTest {
             "time TIMESTAMP WITH TIME ZONE NOT NULL, " +
             "data JSONB, " +
             "extensions JSONB, " +
-            "status VARCHAR(20) NOT NULL DEFAULT 'READY', " +
+            "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'SENT', 'CONFIRMED', 'RETRY_PENDING', 'FAILED', 'CANCELLED')), " +
             "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
             "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
             "PRIMARY KEY (source, id)" +
@@ -84,19 +86,19 @@ class OutboxPollerDatabaseIntegrationTest {
         String eventId = UUID.randomUUID().toString();
         jdbcTemplate.update(
             "INSERT INTO outbox_event (id, source, type, time, status) VALUES (?, ?, ?, ?, ?)",
-            eventId, "/test", "toolA.some_action", Timestamp.from(Instant.now()), "READY"
+            eventId, "/test", "customer.suspend.account", Timestamp.from(Instant.now()), "PENDING"
         );
 
         // Act
         toolAPoller.pollAndDispatch();
 
         // Assert
-        // Verify that the status in the DB is updated to DONE
+        // Verify that the status in the DB is updated to CONFIRMED
         String status = jdbcTemplate.queryForObject(
             "SELECT status FROM outbox_event WHERE id = ?",
             String.class,
             eventId
         );
-        assertThat(status).isEqualTo("DONE");
+        assertThat(status).isEqualTo("CONFIRMED");
     }
 }

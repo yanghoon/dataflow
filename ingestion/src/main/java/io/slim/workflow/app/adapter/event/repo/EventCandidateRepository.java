@@ -1,4 +1,4 @@
-package io.slim.workflow.app.adapter.event;
+package io.slim.workflow.app.adapter.event.repo;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -52,7 +53,7 @@ public class EventCandidateRepository {
     }
 
     public void updateRetry(String id, int retryCount, String nextRetryAt) {
-        String updateSql = "UPDATE outbox_event SET extensions = COALESCE(extensions, '{}'::jsonb) || jsonb_build_object('retry_count', :retryCount, 'next_retry_at', :nextRetryAt), updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+        String updateSql = "UPDATE outbox_event SET extensions = COALESCE(extensions, '{}'::jsonb) || jsonb_build_object('retry_count', :retryCount, 'next_retry_at', :nextRetryAt), status = 'RETRY_PENDING', updated_at = CURRENT_TIMESTAMP WHERE id = :id";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("id", id);
         params.addValue("retryCount", retryCount);
@@ -68,7 +69,7 @@ public class EventCandidateRepository {
             String subject = rs.getString("subject");
             String data = rs.getString("data");
             String datacontenttype = rs.getString("datacontenttype");
-            java.sql.Timestamp time = rs.getTimestamp("time");
+            Timestamp time = rs.getTimestamp("time");
 
             var builder = CloudEventBuilder.v1()
                     .withId(id)

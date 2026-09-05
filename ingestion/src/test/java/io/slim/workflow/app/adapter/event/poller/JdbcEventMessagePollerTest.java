@@ -1,4 +1,4 @@
-package io.slim.workflow.app.adapter.event;
+package io.slim.workflow.app.adapter.event.poller;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
@@ -16,6 +16,12 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import io.slim.workflow.app.adapter.event.dispatcher.CloudEventDispatcher;
+import io.slim.workflow.app.adapter.event.exception.DispatchException;
+import io.slim.workflow.app.adapter.event.model.EventStatus;
+import io.slim.workflow.app.adapter.event.poller.JdbcEventMessagePoller;
+import io.slim.workflow.app.adapter.event.repo.EventCandidateRepository;
+
 
 @ExtendWith(MockitoExtension.class)
 class JdbcEventMessagePollerTest {
@@ -24,7 +30,7 @@ class JdbcEventMessagePollerTest {
     private EventCandidateRepository repository;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private CloudEventDispatcher eventDispatcher;
 
     private JdbcEventMessagePoller poller;
 
@@ -35,7 +41,7 @@ class JdbcEventMessagePollerTest {
     void setUp() {
         poller = new JdbcEventMessagePoller(
                 repository,
-                eventPublisher,
+                eventDispatcher,
                 EXTRACT_SQL,
                 UPDATE_SQL,
                 "TestPoller",
@@ -54,7 +60,7 @@ class JdbcEventMessagePollerTest {
                 .build();
 
         when(repository.findCandidates(EXTRACT_SQL)).thenReturn(List.of(event));
-        doThrow(new PermanentFailureException("fatal")).when(eventPublisher).publishEvent(any(Object.class));
+        doThrow(new DispatchException(EventStatus.FAILED, "fatal")).when(eventDispatcher).dispatch(any(CloudEvent.class));
 
         poller.pollAndDispatch();
 
@@ -73,7 +79,7 @@ class JdbcEventMessagePollerTest {
                 .build();
 
         when(repository.findCandidates(EXTRACT_SQL)).thenReturn(List.of(event));
-        doThrow(new RestClientException("timeout")).when(eventPublisher).publishEvent(any(Object.class));
+        doThrow(new DispatchException(EventStatus.RETRY_PENDING, "timeout")).when(eventDispatcher).dispatch(any(CloudEvent.class));
 
         poller.pollAndDispatch();
 
@@ -93,7 +99,7 @@ class JdbcEventMessagePollerTest {
                 .build();
 
         when(repository.findCandidates(EXTRACT_SQL)).thenReturn(List.of(event));
-        doThrow(new RestClientException("timeout")).when(eventPublisher).publishEvent(any(Object.class));
+        doThrow(new DispatchException(EventStatus.RETRY_PENDING, "timeout")).when(eventDispatcher).dispatch(any(CloudEvent.class));
 
         poller.pollAndDispatch();
 
