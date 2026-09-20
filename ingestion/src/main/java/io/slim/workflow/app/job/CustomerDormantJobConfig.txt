@@ -1,0 +1,69 @@
+package io.slim.workflow.app.job;
+
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import javax.sql.DataSource;
+
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.item.database.JdbcCursorItemReader;
+import org.springframework.batch.infrastructure.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.support.TaskExecutorAdapter;
+
+import lombok.RequiredArgsConstructor;
+
+@Configuration
+@RequiredArgsConstructor
+public class CustomerDormantJobConfig {
+
+    private final JobRepository jobRepository;
+    private final DataSource dataSource;
+
+    @Bean
+    ExecutorService service() {
+        return Executors.newCachedThreadPool();
+    }
+
+    TaskExecutor exe(ExecutorService sercie) {
+        return new TaskExecutorAdapter(sercie);
+    }
+    
+    @Bean
+    Step step() {
+        return new StepBuilder(jobRepository)
+                .<Object, Object>chunk(10)
+                .reader(reader())
+                .processor(item -> {
+                    return item;
+                    // AsyncItemProcessor; async.setDelate(...); async.setTaskExecutor(...);
+                    // catch { return Result.failure(item) }
+                })
+                .writer(items -> {
+                    System.out.println(items);
+                    // AsyncItemWriter
+                    // jdbc.update(items.failures()); stepExecution.incrementProcessskipCount();
+                })
+                .build();
+    }
+
+    JdbcCursorItemReader<Object> reader(
+        @Value("#{jobparameters['days']}") Long days
+    ) {
+        return new JdbcCursorItemReaderBuilder<>()
+                    .name("")
+                    .dataSource(dataSource)
+                    .sql("null")
+                    .queryArguments(days)
+                    .dataRowMapper(Map.class)
+                    .build();
+    }
+
+}
