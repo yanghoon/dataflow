@@ -18,6 +18,7 @@ dependencies {
     implementation("io.cloudevents:cloudevents-json-jackson:3.0.0")
 
     // Batch
+    implementation("org.springframework.batch:spring-batch-integration")
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
     implementation("org.postgresql:postgresql")
