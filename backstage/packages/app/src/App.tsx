@@ -3,10 +3,12 @@ import catalogPlugin from '@backstage/plugin-catalog/alpha';
 import { navModule } from './modules/nav';
 
 import { springBatchFrontendPlugin } from '@jikwan/backstage-plugin-spring-batch-dashboard/src';
+import platformAdminPlugin from '@internal/plugin-platform-admin';
 
 export default createApp({
   features: [
     catalogPlugin, navModule,
     springBatchFrontendPlugin,
+    platformAdminPlugin,
   ],
 });
