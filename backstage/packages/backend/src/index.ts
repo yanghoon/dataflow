@@ -42,6 +42,7 @@ backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 backend.add(import('@backstage/plugin-permission-backend'));
 // See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy
 backend.add(import('./modules/permissionPolicy'));
+backend.add(import('./modules/rbacSpringBridge'));
 
 // search plugin
 backend.add(import('@backstage/plugin-search-backend'));

@@ -51,7 +51,10 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
-    "@backstage/cli": "^0.36.4"
+    "@backstage/backend-test-utils": "^1.11.7",
+    "@backstage/cli": "^0.36.4",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2"
   },
   "files": [
     "dist"

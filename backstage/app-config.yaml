@@ -138,6 +138,10 @@ kubernetes:
 permission:
   # setting this to `false` will disable permissions
   enabled: true
+  rbac:
+    admin:
+      users:
+        - name: user:development/guest
 
 # see https://backstage.io/docs/ai/mcp-actions for more details
 mcpActions:
