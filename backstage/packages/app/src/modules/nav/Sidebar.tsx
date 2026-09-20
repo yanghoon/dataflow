@@ -13,6 +13,11 @@ import SearchIcon from '@material-ui/icons/Search';
 import { SidebarSearchModal } from '@backstage/plugin-search';
 import { UserSettingsSignInAvatar } from '@backstage/plugin-user-settings';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
+import { RequirePermission } from '@backstage/plugin-permission-react';
+import BuildIcon from '@material-ui/icons/Build';
+import WebIcon from '@material-ui/icons/Web';
+import ExtensionIcon from '@material-ui/icons/Extension';
+import { toolsReadPermission, sitesReadPermission, siteToolBindingsReadPermission } from '@internal/plugin-platform-admin';
 
 export const SidebarContent = NavContentBlueprint.make({
   params: {
@@ -35,6 +40,15 @@ export const SidebarContent = NavContentBlueprint.make({
           <SidebarGroup label="Menu" icon={<MenuIcon />}>
             {nav.take('page:catalog')}
             {nav.take('page:scaffolder')}
+            <RequirePermission permission={toolsReadPermission} errorPage={<></>}>
+              <SidebarItem icon={BuildIcon} to="/platform-tools" text="Tools" />
+            </RequirePermission>
+            <RequirePermission permission={sitesReadPermission} errorPage={<></>}>
+              <SidebarItem icon={WebIcon} to="/platform-sites" text="Sites" />
+            </RequirePermission>
+            <RequirePermission permission={siteToolBindingsReadPermission} errorPage={<></>}>
+              <SidebarItem icon={ExtensionIcon} to="/platform-sites/default/toolbindings" text="Tool Bindings" />
+            </RequirePermission>
             <SidebarDivider />
             <SidebarScrollWrapper>
               {nav.rest({ sortBy: 'title' })}

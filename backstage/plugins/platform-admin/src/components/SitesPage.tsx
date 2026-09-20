@@ -1,3 +1,5 @@
+import { RequirePermission } from '@backstage/plugin-permission-react';
+import { sitesReadPermission } from '../permissions';
 
 import {
   Page,
@@ -48,16 +50,18 @@ export const SitesPage = () => {
   }
 
   return (
-    <Page themeId="tool">
-      <Header title="Platform Sites" subtitle="Manage your platform sites" />
-      <Content>
-        <Table
-          title="Sites"
-          options={{ search: false, paging: false }}
-          columns={columns}
-          data={value || []}
-        />
-      </Content>
-    </Page>
+    <RequirePermission permission={sitesReadPermission}>
+      <Page themeId="tool">
+        <Header title="Platform Sites" subtitle="Manage your platform sites" />
+        <Content>
+          <Table
+            title="Sites"
+            options={{ search: false, paging: false }}
+            columns={columns}
+            data={value || []}
+          />
+        </Content>
+      </Page>
+    </RequirePermission>
   );
 };

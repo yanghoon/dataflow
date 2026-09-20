@@ -3,3 +3,4 @@ export {
   ToolsPageExt,
   SitesPageExt
 } from './plugin';
+export * from './permissions';

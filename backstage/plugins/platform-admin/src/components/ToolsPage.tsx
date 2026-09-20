@@ -1,3 +1,5 @@
+import { RequirePermission } from '@backstage/plugin-permission-react';
+import { toolsReadPermission } from '../permissions';
 
 import {
   Page,
@@ -48,16 +50,18 @@ export const ToolsPage = () => {
   }
 
   return (
-    <Page themeId="tool">
-      <Header title="Platform Tools" subtitle="Manage your platform tools" />
-      <Content>
-        <Table
-          title="Tools"
-          options={{ search: false, paging: false }}
-          columns={columns}
-          data={value || []}
-        />
-      </Content>
-    </Page>
+    <RequirePermission permission={toolsReadPermission}>
+      <Page themeId="tool">
+        <Header title="Platform Tools" subtitle="Manage your platform tools" />
+        <Content>
+          <Table
+            title="Tools"
+            options={{ search: false, paging: false }}
+            columns={columns}
+            data={value || []}
+          />
+        </Content>
+      </Page>
+    </RequirePermission>
   );
 };

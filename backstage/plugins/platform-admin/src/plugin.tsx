@@ -2,17 +2,13 @@ import {
   createFrontendPlugin,
   PageBlueprint,
 } from '@backstage/frontend-plugin-api';
-import { rootRouteRef, toolsRouteRef, sitesRouteRef } from './routes';
-import BuildIcon from '@mui/icons-material/Build';
-import WebIcon from '@mui/icons-material/Web';
+import { rootRouteRef, toolsRouteRef, sitesRouteRef, siteToolBindingsRouteRef } from './routes';
 
 export const ToolsPageExt = PageBlueprint.make({
   name: 'ToolsPage',
   params: {
     path: '/platform-tools',
     routeRef: toolsRouteRef,
-    title: 'Platform Tools',
-    icon: <BuildIcon />,
     loader: () => import('./components/ToolsPage').then(m => <m.ToolsPage />),
   },
 });
@@ -22,9 +18,16 @@ export const SitesPageExt = PageBlueprint.make({
   params: {
     path: '/platform-sites',
     routeRef: sitesRouteRef,
-    title: 'Platform Sites',
-    icon: <WebIcon />,
     loader: () => import('./components/SitesPage').then(m => <m.SitesPage />),
+  },
+});
+
+export const SiteToolBindingsPageExt = PageBlueprint.make({
+  name: 'SiteToolBindingsPage',
+  params: {
+    path: '/platform-sites/:slug/toolbindings',
+    routeRef: siteToolBindingsRouteRef,
+    loader: () => import('./components/SiteToolBindingsPage').then(m => <m.SiteToolBindingsPage />),
   },
 });
 
@@ -34,9 +37,11 @@ export const platformAdminPlugin = createFrontendPlugin({
     root: rootRouteRef,
     tools: toolsRouteRef,
     sites: sitesRouteRef,
+    siteToolBindings: siteToolBindingsRouteRef,
   },
   extensions: [
     ToolsPageExt,
     SitesPageExt,
+    SiteToolBindingsPageExt,
   ]
 });

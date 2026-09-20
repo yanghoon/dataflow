@@ -41,9 +41,7 @@ backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
 // See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy
-backend.add(
-  import('@backstage/plugin-permission-backend-module-allow-all-policy'),
-);
+backend.add(import('./modules/permissionPolicy'));
 
 // search plugin
 backend.add(import('@backstage/plugin-search-backend'));
@@ -70,6 +68,7 @@ backend.add(import('@backstage/plugin-signals-backend'));
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
 // Spring Batch Dashboard
+// @ts-ignore
 backend.add(import('@jikwan/backstage-plugin-spring-batch-dashboard-backend'));
 
 backend.start();
