@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "cartog": {
+      "command": "sh",
+      "args": [
+        "/Users/hoon/work/dataflow/tools/cartog/cartog.sh",
+        "serve",
+        "--watch",
+        "--rag"
+      ]
+    }
+  }
+}

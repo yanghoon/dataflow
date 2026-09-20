@@ -1,0 +1,87 @@
+spring:
+  sql:
+    init:
+      mode: never
+  batch:
+    jdbc:
+      initialize-schema: never
+    # job:
+    #   enabled: true
+    #   # name: simple-job
+    #   name: http-job
+      
+---
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dataflow
+    driverClassName: org.postgresql.Driver
+    username: postgres-local
+    password: postgres-local
+
+db-scheduler-ui:
+  history: true
+  log:
+    enabled: true
+
+# https://www.jobrunr.io/en/documentation/configuration/spring/
+jobrunr:
+  background-job-server:
+    enabled: true
+    worker-count: 10
+  dashboard:
+    enabled: true
+    port: 8000
+---
+connections:
+  s3:
+    primary:
+      endpoint: http://localhost:9000
+      region: us-east-1 
+      pathStyleAccess: true
+      accessKey: minio-local
+      secretKey: minio-local-password
+
+jobs:
+  schedules:
+    - name: customers-csv-ingest-job
+      cron: "0 */5 * * * *"
+
+  s3ToPostgresImportJob:
+    source:
+      connectionId: primary
+      bucket: my-data-bucket
+      key: raw/partner-a/data.csv
+    target:
+      sqlResource: classpath:sql/aws_s3_import.sql
+      tableName: target_schema.partner_a_stage
+      columns: id, name, amount, created_at
+      options: FORMAT CSV, HEADER true
+
+---
+jobs:
+  csv:
+    - name: customers-csv-ingest-job
+      source: http://localhost:8080/api/dummy/download
+      token: none
+      retryCount: 10
+      retryInterval: 5000
+      s3:
+        endpoint: http://localhost:9000
+        bucket: dataflow 
+        access_key: minio-local
+        secret_key: minio-local-password
+        path_style_access: true
+        region: us-east-1
+      postgres:
+        copy:
+          tableName: customers_csv
+          format: csv
+          header: true
+          # columns: [index_id, customer_id, first_name, last_name, company, city, country, phone_1, phone_2, email, subscription_date, website]
+        insertSql: classpath:sql/data/customers_csv_insert.sql
+      # s3_endpoint: http://localhost:9000
+      # s3_bucket: dataflow 
+      # s3_access_key: minio
+      # s3_secret_key: miniopassword
+      # s3_path_style_access: true
+      # s3_region: us-east-1

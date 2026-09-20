@@ -1,0 +1,29 @@
+@startuml ingestion_container
+!include <C4/C4_Container>
+
+left to right direction
+
+title Container Diagram for Data Ingestion Workflow System
+
+Person(admin, "Admin / Operator", "Monitors and manages workflows via UI and API")
+
+System_Boundary(c1, "Ingestion Workflow System") {
+    Container(scheduler, "Scheduler", "Scheduling Engine", "Schedules and triggers workflow jobs")
+    Container(batch_app, "Batch App", "Java / Spring Boot", "Executes ingestion workflows and batch jobs")
+    ContainerDb(postgres_db, "Database", "PostgreSQL / JDBC", "Stores schedules and batch state")
+}
+
+System_Ext(http_api, "External Data APIs", "REST / HTTPS", "Source of data to ingest")
+System_Ext(s3_storage, "Object Storage", "S3 API", "Target for raw ingested data")
+
+Rel_R(admin, scheduler, "Views task status", "HTTP")
+Rel_R(admin, batch_app, "Manages workflows", "REST API")
+
+Rel_R(scheduler, batch_app, "Triggers with jobName", "Job execution")
+Rel_D(scheduler, postgres_db, "Reads/Writes schedules & state", "JDBC")
+
+Rel_R(batch_app, http_api, "Fetches source data", "HTTPS")
+Rel_R(batch_app, s3_storage, "Stores raw files", "S3 API")
+
+SHOW_LEGEND()
+@enduml

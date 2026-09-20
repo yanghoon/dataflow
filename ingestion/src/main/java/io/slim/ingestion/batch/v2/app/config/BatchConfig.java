@@ -5,7 +5,7 @@ import org.springframework.batch.core.configuration.support.MapJobRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+@Configuration("batchConfigV2")
 public class BatchConfig {
 
     // @Bean

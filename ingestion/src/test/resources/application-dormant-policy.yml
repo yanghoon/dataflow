@@ -1,0 +1,8 @@
+workflow:
+  jobs:
+    customer-dormant-policy-job:
+      type: customer-dormant-policy
+      cron: "0 0 3 * * *"
+      props:
+        thresholdDays: "20"
+        sqlPath: "classpath:sql/dormant_customer_policy.sql"

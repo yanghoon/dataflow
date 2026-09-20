@@ -1,4 +1,27 @@
 spring:
-  batch:
-    job:
-      enabled: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dataflow
+    driverClassName: org.postgresql.Driver
+    username: postgres-local
+    password: postgres-local
+  sql:
+    init:
+      mode: always
+      schemaLocations:
+        - classpath:sql/schema/db_scheduler.sql
+
+app:
+  rest:
+    default:
+      connectTimeout: 5000
+      readTimeout: 5000
+  outbox:
+    default:
+      retry:
+        max-attempts: 3
+        initial-interval: 1000
+
+db-scheduler-ui:
+  history: true
+  log:
+    enabled: true

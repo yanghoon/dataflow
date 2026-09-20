@@ -9,6 +9,7 @@ import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestClient;
+import io.slim.ingestion.batch.job.param.StepParamsBinder;
 
 public class HttpTasklet implements Tasklet {
 
@@ -41,25 +42,21 @@ public class HttpTasklet implements Tasklet {
         // var headers = jobParams.get(Constants.HTTP_HEADERS);
         // var body = jobParams.get(Constants.HTTP_BODY);
 
-        var step = chunkContext.getStepContext();
-        var prefix = step.getStepName();
-        var params = StepParamsBinder.bind(step.getJobParameters(), prefix, HttpCallParams.class).get();
+        var stepContext = chunkContext.getStepContext();
+        var prefix = stepContext.getStepName();
+        var jobParams = stepContext.getStepExecution().getJobParameters();
+        var params = StepParamsBinder.bind(jobParams, prefix, HttpCallParams.class);
 
         // Build Request
-        var method = HttpMethod.valueOf(methodStr);
-        var req = restClient.method(method).uri(urlStr);
+        var method = HttpMethod.valueOf(params.getMethod());
+        var req = restClient.method(method).uri(params.getUrl());
 
-        if (headers != null) {
-            // TODO
-        }
-
-        if (body != null) {
-            req.body(body);
-        }
+        // if (params.getHaeders() != null) {
+        //     // TODO
+        // }
 
         // Send Request
-        // var res = req.retrieve().toEntity(String.class);
-        var res = req.retrieve();
+        var res = req.retrieve().toEntity(String.class);
 
         return callback.call(req, res, chunkContext);
 

@@ -15,8 +15,11 @@ CREATE TABLE customers_csv (
 );
 
 CREATE TABLE customers (
+    snapshot_date DATE NOT NULL,              -- 데이터 스냅샷 날짜
+    system_id VARCHAR(50) NOT NULL,               -- 시스템 내부용 고유 ID
+
     index_id INTEGER,           -- CSV의 'Index' 컬럼
-    customer_id VARCHAR(50) UNIQUE NOT NULL, -- 영문/숫자 혼합 고유 ID
+    customer_id VARCHAR(50) NOT NULL, -- 영문/숫자 혼합 고유 ID
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     company VARCHAR(255),
@@ -27,7 +30,6 @@ CREATE TABLE customers (
     email VARCHAR(255),
     subscription_date DATE,                  -- 'YYYY-MM-DD' 형식에 맞는 표준 DATE 타입
     website VARCHAR(255),
-    snapshot_date DATE NOT NULL,
 
     PRIMARY KEY (snapshot_date, index_id),
     UNIQUE (snapshot_date, customer_id)

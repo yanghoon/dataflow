@@ -1,0 +1,74 @@
+# .cartog.toml — project-level configuration for cartog
+#
+# All sections are commented out by default; defaults apply. Uncomment a
+# section and set the keys you want to override. Run `cartog config` to
+# print the active configuration. See https://github.com/jrollin/cartog
+# for the schema reference.
+
+# [database]
+# path = ".cartog/db.sqlite"
+
+# [embedding]
+# provider = "local"             # "local" (default) | "ollama" | "openai"
+#
+# For an OpenAI-compatible /v1 endpoint (OpenAI, Mistral, Voyage, Jina, OVHcloud,
+# or a local server like Ollama /v1, LM Studio, vLLM), set provider = "openai"
+# and uncomment the [embedding.openai] block below. The API key is read from an
+# env var, never stored here; leave the var unset for keyless local endpoints.
+# model = "text-embedding-3-small"
+#
+# ollama/openai only: in-flight HTTP embed requests (1..16, default 4). Env
+# CARTOG_EMBED_CONCURRENCY overrides; ignored for local. (Currently gated: both
+# providers run serially until a live batch-composition parity test passes.)
+# max_concurrent_requests = 4
+#
+# Watcher auto-embed under `serve --watch` / `watch`. Omit for auto-detect (embed
+# only if the repo already has embeddings). Precedence: CARTOG_WATCH_RAG > this > --rag.
+# auto_embed = true
+
+# [embedding.openai]                            # only used when provider = "openai"
+# base_url    = "https://api.openai.com/v1"     # or http://localhost:11434/v1 (Ollama), etc.
+# api_key_env = "OPENAI_API_KEY"                # env var NAME, not the key itself
+
+# [lsp]
+# Max LSP servers run concurrently during the indexer's edge-resolution pass.
+# 0 or omitted = auto (min(languages, 4)). Each server is RAM-heavy
+# (rust-analyzer ~1-2GB). Env CARTOG_LSP_MAX_SERVERS overrides; 1 = serial.
+# max_concurrent_servers = 2
+# Per-language server override (Dockerized server, custom binary, ...):
+# [lsp.dart]
+# command = ["docker", "run", "--rm", "-i", "-v", "${ROOT}:${ROOT}", "-w", "${ROOT}", "cartog-lsp-dart:stable"]
+
+# [reranker]
+# enabled = true
+
+# [rag]
+# retrieval_multiplier = 3  # over-retrieve N× before fusion (default: 3)
+# rerank_max = 50            # max candidates sent to reranker (default: 50)
+
+# [remote]
+# Opt in to push/pull of the prebuilt index over an S3-compatible bucket.
+# Credentials are NEVER read from here — use env vars / ~/.aws profile / IMDS.
+# url        = "s3://my-team-bucket/cartog/main"
+# endpoint   = "https://minio.example.com"   # MinIO / R2 / floci
+# path_style = true                          # set true for most non-AWS endpoints
+
+# [security]
+# Redact common secret patterns (API keys, tokens, JWTs) from stored symbol
+# text. On by default. Sensitive files (.env, *.pem, id_rsa, ...) are always
+# excluded regardless of this setting.
+# redact_secrets = true
+
+# [index]
+# cartog honors .gitignore (incl. nested) and .cartogignore by default. These
+# globs skip ADDITIONAL repo-root-relative paths (matched dirs are pruned), on
+# top of .gitignore and the built-in dependency/build-dir prune list.
+# exclude = ["vendor/**", "**/*.generated.*"]
+# Set false to index files git ignores (e.g. committed generated code); the
+# prune list and `exclude` still apply.
+# respect_gitignore = true
+# Parse worker threads. 0 or omitted = auto (CPU count); clamped 1..=64; use 1
+# for serial. Cap it on low-CPU hosts. Overridden by CARTOG_JOBS and --jobs N.
+# jobs = 4
+[lsp.java]
+command = ["nc", "cartog-lsp-java", "5000"]

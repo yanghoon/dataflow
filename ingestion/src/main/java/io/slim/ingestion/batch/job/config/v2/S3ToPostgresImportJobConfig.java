@@ -2,9 +2,8 @@ package io.slim.ingestion.batch.job.config.v2;
 
 import org.springframework.context.EnvironmentAware;
 
-import io.slim.ingestion.batch.job.config.core.JobDef;
-import io.slim.ingestion.batch.job.config.core.dto.SourceStepConfig;
-import io.slim.ingestion.batch.job.config.core.dto.TargetStepConfig;
+import io.slim.ingestion.batch.v2.app.service.JobDef;
+import org.springframework.stereotype.Component;
 import io.slim.ingestion.batch.job.step.postgres.PostgresImportS3CsvTasklet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.job.Job;
@@ -68,40 +67,10 @@ public class S3ToPostgresImportJobConfig {
 
         @Override
         public JobParameters buildParameters(long triggeredAt) {
-            // 주의: 이 내부는 '트리거 되는 순간'에 실행되므로 항상 최신 YAML 상태를 읽음
-
-            // 1. Environment(YAML)에서 이 Job에 해당하는 설정 파싱
-            var binder = Binder.get(env);
-            var prefix = "jobs" + getJobName();
-
-            var s3Spec = binder.bind(prefix, S3UploadSpec.class).get();
-            var s3Params = s3Spec.toParams(
-                conns.http(s3Spec.source().http().connectionId()),
-                conns.s3(s3Spec.target().connectionId())
-            );
-            var httpParams = s3Params.srouce().http();
-
-            // 2. ConnectionRegistry에서 최신 S3 Region 등 조회
-            // S3ConnectionInfo s3Conn = connectionRegistry.getS3(source.getConnectionId());
-            s3params.source().http().headers().add("Authorization", "Basic xxxx");
-            httpParams.headers().add("Authorization", "Basic xxxx");
-
-            var builder = new JobParameterBuilder();
-            StepParamsBinder.appendTo(builder, StepParamsBinder.flatten(httpParams, STEP_HTTP));
-            StepParamsBinder.appendTo(builder, StepParamsBinder.flatten(s3Params, STEP_S3));
-            return builder.toJobParameters();
-
-            // 3. Flatten 방식의 JobParameters 생성 (Dot notation)
-            // return new JobParametersBuilder()
-            //     .addString("s3.bucket", source.getBucket())
-            //     .addString("s3.key", source.getKey())
-            //     .addString("s3.region", s3Conn.getRegion())
-            //     .addString("target.tableName", target.getTableName())
-            //     .addString("target.columns", target.getColumns())
-            //     .addString("target.options", target.getOptions())
-            //     .addString("target.sqlResourcePath", target.getSqlResourcePath())
-            //     .addLong("triggeredAt", triggeredAt) // 유니크 키
-            //     .toJobParameters();
+            // TODO: Implement parameter building logic properly once S3UploadSpec is defined
+            return new JobParametersBuilder()
+                    .addLong("triggeredAt", triggeredAt)
+                    .toJobParameters();
         }
     }
 }

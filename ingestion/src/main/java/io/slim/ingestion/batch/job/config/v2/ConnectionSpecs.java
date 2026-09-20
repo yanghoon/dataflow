@@ -1,16 +1,17 @@
+package io.slim.ingestion.batch.job.config.v2;
 
 import lombok.Data;
 
 public class ConnectionSpecs {
 
     @Data
-    public class HttpConnectionSpec {
+    public static class HttpConnectionSpec {
         private String baseUrl;
         private String authEnvVar;
     }
 
     @Data
-    public class S3ConnectionSpec {
+    public static class S3ConnectionSpec {
         private String endpoint;
         private String region;
     }

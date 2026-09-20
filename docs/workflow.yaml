@@ -1,0 +1,140 @@
+name: Dify RAG Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/guides/**/*.md'
+  workflow_dispatch:
+
+jobs:
+  sync-to-dify:
+    runs-on: ubuntu-latest
+    env:
+      DIFY_BASE_URL: ${{ vars.DIFY_BASE_URL }}
+      DIFY_DATASET_ID: ${{ vars.DIFY_DATASET_ID }}
+      DIFY_API_KEY: ${{ secrets.DIFY_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          BEFORE_SHA="${{ github.event.before }}"
+          AFTER_SHA="${{ github.sha }}"
+          EMPTY_TREE="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+          # 최초 push이거나 수동 실행(workflow_dispatch) 등으로 BEFORE_SHA가 비어있는 경우
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "BEFORE_SHA is empty or zero, using EMPTY_TREE to process all current files."
+            BEFORE_SHA="$EMPTY_TREE"
+          fi
+
+          # docs/guides 하위의 .md 파일 변경분만 추출
+          # --no-renames 옵션으로 파일 이름 변경 시 삭제(D) 및 추가(A)로 처리하여 로직 단순화
+          git diff --name-status --no-renames "$BEFORE_SHA" "$AFTER_SHA" -- 'docs/guides/**/*.md' > changed_files.txt
+          
+          echo "Changed files:"
+          cat changed_files.txt
+
+      - name: Process documents
+        run: |
+          # 에러 핸들링: 하나의 파일이라도 실패(API 에러 등) 시 즉시 스크립트 중단 (간단한 버전)
+          set -e
+
+          fetch_doc_id() {
+            local path="$1"
+            curl -sS -G "$DIFY_BASE_URL/v1/datasets/$DIFY_DATASET_ID/documents" \
+              --data-urlencode "keyword=$path" \
+              --data-urlencode "limit=100" \
+              -H "Authorization: Bearer $DIFY_API_KEY" \
+              | jq -r --arg p "$path" '.data[]? | select(.name == $p) | .id' | head -n1
+          }
+
+          wait_for_indexing() {
+            local batch="$1"
+            local max_attempts=30
+            local attempt=0
+            
+            while (( attempt < max_attempts )); do
+              local resp
+              resp=$(curl -sS -G "$DIFY_BASE_URL/v1/datasets/$DIFY_DATASET_ID/documents/$batch/indexing-status" \
+                -H "Authorization: Bearer $DIFY_API_KEY")
+              
+              local status
+              status=$(echo "$resp" | jq -r '.data[0].indexing_status')
+              
+              case "$status" in
+                completed) return 0 ;;
+                error)
+                  echo "::error::indexing failed: $(echo "$resp" | jq -r '.data[0].error')"
+                  return 1
+                  ;;
+              esac
+              
+              sleep 5
+              ((attempt++))
+            done
+            
+            echo "::error::indexing timeout after $((max_attempts * 5))s"
+            return 1
+          }
+
+          while read -r status path; do
+            if [[ -z "$status" || -z "$path" ]]; then continue; fi
+
+            echo "=========================================="
+            echo "Processing [$status] $path..."
+            
+            if [[ "$status" == "D" ]]; then
+              doc_id=$(fetch_doc_id "$path")
+              if [[ -n "$doc_id" ]]; then
+                echo "Deleting document $doc_id for $path"
+                curl -sS -f -X DELETE \
+                  "$DIFY_BASE_URL/v1/datasets/$DIFY_DATASET_ID/documents/$doc_id" \
+                  -H "Authorization: Bearer $DIFY_API_KEY"
+                echo "Deleted successfully."
+              else
+                echo "Document not found in Dify, skipping delete."
+              fi
+            elif [[ "$status" == "A" || "$status" == "M" ]]; then
+              doc_id=$(fetch_doc_id "$path")
+              content=$(jq -Rs '.' < "$path")
+              process_rule='{
+                "mode": "custom",
+                "rules": {
+                  "pre_processing_rules": [{"id": "remove_extra_spaces", "enabled": true}],
+                  "segmentation": {"separator": "\n## ", "max_tokens": 600}
+                }
+              }'
+
+              if [[ -z "$doc_id" ]]; then
+                echo "Creating new document for $path"
+                resp=$(curl -sS -f -X POST \
+                  "$DIFY_BASE_URL/v1/datasets/$DIFY_DATASET_ID/document/create-by-text" \
+                  -H "Authorization: Bearer $DIFY_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"name\":\"$path\",\"text\":$content,\"indexing_technique\":\"high_quality\",\"process_rule\":$process_rule}")
+              else
+                echo "Updating document $doc_id for $path"
+                resp=$(curl -sS -f -X POST \
+                  "$DIFY_BASE_URL/v1/datasets/$DIFY_DATASET_ID/documents/$doc_id/update-by-text" \
+                  -H "Authorization: Bearer $DIFY_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"name\":\"$path\",\"text\":$content,\"process_rule\":$process_rule}")
+              fi
+
+              batch=$(echo "$resp" | jq -r '.batch')
+              if [[ "$batch" != "null" && -n "$batch" ]]; then
+                echo "Waiting for indexing (batch: $batch)..."
+                wait_for_indexing "$batch"
+                echo "Indexing completed."
+              else
+                echo "No batch ID returned, skipping indexing wait."
+              fi
+            fi
+          done < changed_files.txt

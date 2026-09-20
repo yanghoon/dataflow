@@ -1,3 +1,6 @@
+package io.slim.ingestion.batch.job.step.s3;
+
+import io.slim.ingestion.batch.job.step.http.HttpCallParams;
 
 public class S3UploadParams {
     SourceParams source;

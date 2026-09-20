@@ -1,0 +1,84 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dataflow
+    driverClassName: org.postgresql.Driver
+    username: # from secret
+    password: # from secret
+  sql:
+    init:
+      mode: always
+      schemaLocations:
+        - classpath:sql/schema/db_scheduler.sql
+        - classpath:sql/schema/customers.sql
+        - classpath:sql/schema/customers_remote.sql
+        - classpath:sql/schema/event_queue.sql
+
+app:
+  s3:
+    primary:
+      endpoint: http://localhost:9000
+      region: us-east-1 
+      pathStyleAccess: true
+      accessKey: minio-local
+      secretKey: minio-local-password
+  http:
+    dummy:
+      url: http://localhost:8080
+      # defaultRequestHeaders:
+      #   Authorization: Basic xxxxxx
+
+workflow:
+  jobs:
+    # 1. 일반 워크플로우(WORKFLOW 엔진) 샘플
+    sample-workflow-job:
+      job-name: "Sample Workflow Job"
+      group: "sample_group"
+      engine: "WORKFLOW"
+      cron-expression: "0 0 * * * ?"
+      enabled: true
+      workflow-type: "CUSTOM_WORKFLOW"
+      where:
+        url: "http://example.com/api"
+        method: "GET"
+
+    customers-csv-ingest-job:
+      type: csv
+      cron: 0 0 * * * *
+      props:
+        rest:
+          clientId: dummy
+          path: /customers-100.csv
+        s3:
+          clientId: primary
+          bucket: dataflow 
+          keyPattern: customers/v2/customers-{date}.csv
+        postgres:
+          tableName: customers_csv
+          insertSql: classpath:sql/data/customers_csv_insert.sql
+          systemId: test
+
+    customers-fdw-ingest-jog:
+      type: postgres-fdw
+      # TODO: 크론값이 없을 경우 수동 실행으로 처리되도록 버그 수정 필요 (현재는 NPE 발생)
+      props:
+        postgres:
+          tableName: customers_csv_fdw
+          insertSql: classpath:sql/data/customer_csv_fdw_snapshot.sql
+          systemId: fdw
+
+    customer-event-extract-job:
+      type: event-extraction
+      cron: 0 0 2 * * *
+      props:
+        sqlPath: classpath:sql/find_customers_for_event.sql
+        status: INACTIVE
+        daysSinceLastLogin: 30
+        eventSource: urn:dataflow:customer-service
+        eventType: com.dataflow.customer.inactive
+
+    customer-dormant-policy-job:
+      type: customer-dormant-policy
+      cron: 0 0 3 * * *
+      props:
+        thresholdDays: 30
+        sqlPath: classpath:sql/dormant_customer_policy.sql
