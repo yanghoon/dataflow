@@ -40,6 +40,22 @@ export async function createRouter(
     `Spring Batch API router initialized with environments: ${availableEnvironments.join(', ')} (default: ${defaultEnvironment})`,
   );
 
+  // Mock Casbin Middleware
+  const requireCasbinAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // 1. Get User Entity Ref from Request Header (or Token)
+    const userRef = req.headers['authorization'] || 'user:default/guest'; // In real app, extract from Token
+    // 2. Map User Entity Ref to Casbin Subject format
+    const subject = userRef.replace('Bearer ', '');
+    // 3. Check permissions in casbin_rule DB
+    const hasPermission = subject !== 'blocked_user'; // Mock condition
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'Forbidden by Casbin' });
+    }
+    next();
+  };
+
+  router.use(requireCasbinAuth);
+
   router.get('/environments', (_req, res) => {
     res.json({
       environments: availableEnvironments,
