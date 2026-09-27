@@ -3,8 +3,10 @@ package io.slim.workflow.app.config.workflow;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.time.Clock;
 
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,12 @@ import io.slim.workflow.domain.repo.WorkflowRepository;
 @Configuration
 @EnableConfigurationProperties(WorkflowProperties.class)
 public class WorkflowConfig {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Clock clock() {
+        return Clock.systemDefaultZone();
+    }
 
     @Bean
     WorkflowRepository workflowRepository(List<Workflow> workflows) {
@@ -39,7 +47,4 @@ public class WorkflowConfig {
     Workflow dormantCustomerPolicy(AutowireCapableBeanFactory factory) {
         return factory.createBean(DormantCustomerPolicy.class);
     }
-
-
-
 }

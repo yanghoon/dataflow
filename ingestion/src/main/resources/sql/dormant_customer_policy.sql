@@ -4,4 +4,4 @@ SELECT
     email
 FROM customers 
 WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM customers)
-  AND (subscription_date <= CURRENT_DATE - CAST(:thresholdDays || ' days' AS INTERVAL) OR subscription_date IS NULL)
+  AND (subscription_date <= CAST(:cutoffDate AS DATE) OR subscription_date IS NULL)

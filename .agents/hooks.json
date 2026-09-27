@@ -1,0 +1,15 @@
+{
+  "selective-auto-approve": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 auto_approve.py"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,13 +2,14 @@ package io.slim.workflow.app.adapter.workflow.event;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -19,8 +20,11 @@ import io.slim.workflow.domain.WorkflowParams;
 
 public class DormantCustomerPolicy extends AbstractPolicy {
 
-    public DormantCustomerPolicy(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
+    private final Clock clock;
+
+    public DormantCustomerPolicy(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader, Clock clock) {
         super(jdbcTemplate, objectMapper, resourceLoader);
+        this.clock = clock;
     }
 
     @Override
@@ -35,11 +39,12 @@ public class DormantCustomerPolicy extends AbstractPolicy {
             props = Map.of();
         }
         
-        // Use thresholdDays for dynamic interval calculation
         String thresholdDays = props.getOrDefault("thresholdDays", "30");
+        int days = Integer.parseInt(thresholdDays);
+        LocalDate cutoffDate = LocalDate.now(clock).minusDays(days);
 
         MapSqlParameterSource sqlParams = new MapSqlParameterSource();
-        sqlParams.addValue("thresholdDays", Integer.parseInt(thresholdDays));
+        sqlParams.addValue("cutoffDate", cutoffDate.toString());
         
         super.extractAndSaveEvents(jobSnapshot, sqlParams, this::toEvent);
     }

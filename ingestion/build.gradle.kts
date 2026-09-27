@@ -38,6 +38,10 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:apache-client")
 
+    // JSON Schema
+    implementation("com.github.victools:jsonschema-generator:4.36.0")
+    implementation("com.github.victools:jsonschema-module-jakarta-validation:4.36.0")
+
     // REST
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
