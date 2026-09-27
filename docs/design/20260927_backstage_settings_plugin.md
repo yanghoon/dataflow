@@ -1,5 +1,9 @@
 # Backstage Settings 플러그인 프론트엔드 설계 스펙
 
+## 가정 (Assumptions)
+- **배달/일관성 보장:** 폼 상태는 별도 로컬스토리지 캐싱 없이, 저장 실패 시(API 에러) 현재 화면 상태를 그대로 유지하여 사용자가 수동으로 재시도할 수 있도록 합니다.
+- **테스트 파일 분리:** 통합 테스트는 `SettingsPage.integration.test.tsx` 파일로 분리하여 MSW 연동 경계 검증을 수행합니다.
+
 ## 목표
 Config 스키마 구현 내용을 바탕으로, 관리자가 설정(Config)을 조회하고 값을 수정할 수 있는 별도의 Backstage Settings 플러그인을 구현한다. VSCode 설정 창처럼 그룹핑과 설명(Title/Description)이 예쁘게 렌더링되어야 하며, 백엔드의 JSON Schema를 기반으로 `@rjsf/core`를 활용해 동적으로 폼을 구성한다.
 

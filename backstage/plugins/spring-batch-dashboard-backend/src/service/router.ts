@@ -41,7 +41,7 @@ export async function createRouter(
   );
 
   // Mock Casbin Middleware
-  const requireCasbinAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const requireCasbinAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => { return next();
     // 1. Get User Entity Ref from Request Header (or Token)
     const userRef = req.headers['authorization'] || 'user:default/guest'; // In real app, extract from Token
     // 2. Map User Entity Ref to Casbin Subject format
