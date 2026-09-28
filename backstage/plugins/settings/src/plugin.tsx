@@ -1,9 +1,23 @@
 import {
   createFrontendPlugin,
   PageBlueprint,
+  ApiBlueprint,
 } from '@backstage/frontend-plugin-api';
 
+import { createApiFactory, discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
+import { settingsApiRef, SettingsApiClient } from './api';
+
 import { rootRouteRef } from './routes';
+
+export const api = ApiBlueprint.make({
+  params: factory => factory(
+    createApiFactory({
+      api: settingsApiRef,
+      deps: { discoveryApi: discoveryApiRef, fetchApi: fetchApiRef },
+      factory: ({ discoveryApi, fetchApi }) => new SettingsApiClient({ discoveryApi, fetchApi }),
+    })
+  ),
+});
 
 export const page = PageBlueprint.make({
   params: {
@@ -18,7 +32,7 @@ export const page = PageBlueprint.make({
 
 export const settingsPlugin = createFrontendPlugin({
   pluginId: 'settings',
-  extensions: [page],
+  extensions: [api, page],
   routes: {
     root: rootRouteRef,
   }
