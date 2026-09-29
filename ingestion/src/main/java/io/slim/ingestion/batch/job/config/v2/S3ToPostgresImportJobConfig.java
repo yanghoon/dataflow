@@ -2,7 +2,6 @@ package io.slim.ingestion.batch.job.config.v2;
 
 import org.springframework.context.EnvironmentAware;
 
-import io.slim.ingestion.batch.v2.app.service.JobDef;
 import org.springframework.stereotype.Component;
 import io.slim.ingestion.batch.job.step.postgres.PostgresImportS3CsvTasklet;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,6 @@ public class S3ToPostgresImportJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final PostgresImportS3CsvTasklet tasklet;
-    private final ConnectionRegistry connectionRegistry;
 
     // 1. 실제 Batch Job 조립 (애플리케이션 기동 시 1회 실행)
     @Bean
@@ -46,31 +44,5 @@ public class S3ToPostgresImportJobConfig {
         return new JobBuilder("s3ToPostgresImportJob", jobRepository)
             .start(s3ToPostgresImportStep())
             .build();
-    }
-
-    // 2. [NEW] 해당 잡을 위한 파라미터 생성기 (트리거 시점에 실행될 로직)
-    // @Bean
-    // public JobDef s3ToPostgresImportJobDef() {
-    //     return new S3ToPostgresJobDef(connectionRegistry);
-    // }
-
-    @Component
-    @RequiredArgsConstructor
-    public static class S3ToPostgresJobDef implements JobDef {
-        private Environment env;
-        private final ConnectionRegistry conns;
-
-        @Override
-        public String getJobName() {
-            return "s3ToPostgresImportJob";
-        }
-
-        @Override
-        public JobParameters buildParameters(long triggeredAt) {
-            // TODO: Implement parameter building logic properly once S3UploadSpec is defined
-            return new JobParametersBuilder()
-                    .addLong("triggeredAt", triggeredAt)
-                    .toJobParameters();
-        }
     }
 }

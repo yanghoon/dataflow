@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.config;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import org.junit.jupiter.api.Test;
 import jakarta.validation.constraints.NotNull;

@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.rest;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import java.util.List;
 import java.util.Map;
@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator.ConstraintViolationExceptionWrapper;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator.ConstraintViolationExceptionWrapper;
 
 @RestControllerAdvice
 public class ValidationExceptionHandler {

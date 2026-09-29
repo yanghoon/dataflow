@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import;
 
 import io.slim.ingestion.batch.job.config.v2.S3ToPostgresImportJobConfig;
 import io.slim.ingestion.batch.job.step.postgres.PostgresImportS3CsvTasklet;
-import io.slim.ingestion.batch.v2.app.service.JobTriggerService;
+import io.slim.workflow.app.service.JobTriggerService;
 
 @Configuration
 @EnableAutoConfiguration

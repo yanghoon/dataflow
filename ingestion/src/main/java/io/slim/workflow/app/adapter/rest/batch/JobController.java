@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.rest;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import java.time.LocalDateTime;
 import java.util.Map;

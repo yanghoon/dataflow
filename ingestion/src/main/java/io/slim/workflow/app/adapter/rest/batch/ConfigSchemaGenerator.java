@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.config;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import com.github.victools.jsonschema.generator.OptionPreset;
 import com.github.victools.jsonschema.generator.SchemaGenerator;

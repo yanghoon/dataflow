@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.integration;
+package io.slim.workflow.app.adapter.rest.batch.integration;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -27,14 +27,14 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @SpringBootTest(classes = {
     io.slim.ingestion.batch.TestApplication.class, 
-    io.slim.ingestion.batch.v2.app.infra.rest.AdminJobController.class, 
-    io.slim.ingestion.batch.v2.app.infra.rest.ValidationExceptionHandler.class
+    io.slim.workflow.app.adapter.rest.batch.AdminJobController.class, 
+    io.slim.workflow.app.adapter.rest.batch.ValidationExceptionHandler.class, com.fasterxml.jackson.databind.ObjectMapper.class
 })
 @AutoConfigureMockMvc
 class AdminJobControllerIT {

@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.unit;
+package io.slim.workflow.app.adapter.rest.batch.unit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,8 +10,8 @@ import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator;
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator.ConstraintViolationExceptionWrapper;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator.ConstraintViolationExceptionWrapper;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 

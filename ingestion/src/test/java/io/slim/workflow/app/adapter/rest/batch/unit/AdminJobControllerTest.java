@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.unit;
+package io.slim.workflow.app.adapter.rest.batch.unit;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -27,9 +27,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator;
-import io.slim.ingestion.batch.v2.app.infra.rest.AdminJobController;
-import io.slim.ingestion.batch.v2.app.infra.rest.ValidationExceptionHandler;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator;
+import io.slim.workflow.app.adapter.rest.batch.AdminJobController;
+import io.slim.workflow.app.adapter.rest.batch.ValidationExceptionHandler;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 

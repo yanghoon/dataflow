@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.batch;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import java.util.Set;
 import jakarta.validation.ConstraintViolation;

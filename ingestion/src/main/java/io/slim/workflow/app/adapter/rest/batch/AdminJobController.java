@@ -1,4 +1,4 @@
-package io.slim.ingestion.batch.v2.app.infra.rest;
+package io.slim.workflow.app.adapter.rest.batch;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.slim.ingestion.batch.v2.app.infra.batch.SchemaAwareValidator;
+import io.slim.workflow.app.adapter.rest.batch.SchemaAwareValidator;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
 import lombok.RequiredArgsConstructor;
