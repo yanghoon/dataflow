@@ -4,20 +4,32 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Map;
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.Test;
-import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.configuration.support.JobRegistrySmartInitializingSingleton;
+import org.springframework.batch.core.configuration.support.MapJobRegistry;
+import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,21 +52,21 @@ public class BatchConsoleControllerIntegrationTest {
     static class TestConfig {
 
         @Bean
-        public javax.sql.DataSource dataSource() {
-            org.springframework.jdbc.datasource.DriverManagerDataSource dataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource();
+        public DataSource dataSource() {
+            DriverManagerDataSource dataSource = new DriverManagerDataSource();
             dataSource.setDriverClassName("org.sqlite.JDBC");
             dataSource.setUrl("jdbc:sqlite::memory:");
-            org.springframework.jdbc.datasource.init.ResourceDatabasePopulator populator = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator();
-            populator.addScript(new org.springframework.core.io.ClassPathResource("org/springframework/batch/core/schema-drop-sqlite.sql"));
-            populator.addScript(new org.springframework.core.io.ClassPathResource("org/springframework/batch/core/schema-sqlite.sql"));
+            ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+            populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-drop-sqlite.sql"));
+            populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-sqlite.sql"));
             populator.setIgnoreFailedDrops(true);
-            org.springframework.jdbc.datasource.init.DatabasePopulatorUtils.execute(populator, dataSource);
+            DatabasePopulatorUtils.execute(populator, dataSource);
             return dataSource;
         }
 
         @Bean
-        public PlatformTransactionManager transactionManager(javax.sql.DataSource dataSource) {
-            return new org.springframework.jdbc.support.JdbcTransactionManager(dataSource);
+        public PlatformTransactionManager transactionManager(DataSource dataSource) {
+            return new JdbcTransactionManager(dataSource);
         }
 
         @Bean
@@ -67,13 +79,13 @@ public class BatchConsoleControllerIntegrationTest {
         }
         
         @Bean
-        public org.springframework.batch.core.configuration.JobRegistry jobRegistry() {
-            return new org.springframework.batch.core.configuration.support.MapJobRegistry();
+        public JobRegistry jobRegistry() {
+            return new MapJobRegistry();
         }
         
         @Bean
-        public org.springframework.batch.core.configuration.support.JobRegistrySmartInitializingSingleton jobRegistrySmartInitializingSingleton(org.springframework.batch.core.configuration.JobRegistry jobRegistry) {
-            return new org.springframework.batch.core.configuration.support.JobRegistrySmartInitializingSingleton(jobRegistry) {
+        public JobRegistrySmartInitializingSingleton jobRegistrySmartInitializingSingleton(JobRegistry jobRegistry) {
+            return new JobRegistrySmartInitializingSingleton(jobRegistry) {
                 @Override
                 public void afterSingletonsInstantiated() {
                     try {

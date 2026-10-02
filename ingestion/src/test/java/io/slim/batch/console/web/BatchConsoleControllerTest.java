@@ -2,6 +2,7 @@ package io.slim.batch.console.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,10 +53,10 @@ public class BatchConsoleControllerTest {
 
     @Test
     public void testLaunchJob() throws Exception {
-        Job mockJob = org.mockito.Mockito.mock(Job.class);
+        Job mockJob = mock(Job.class);
         when(jobRegistry.getJob("job1")).thenReturn(mockJob);
 
-        JobExecution mockExecution = org.mockito.Mockito.mock(JobExecution.class);
+        JobExecution mockExecution = mock(JobExecution.class);
         when(mockExecution.getId()).thenReturn(100L);
         when(jobLauncher.run(eq(mockJob), any(JobParameters.class))).thenReturn(mockExecution);
 

@@ -40,6 +40,18 @@ public class JobSchedulerServiceTest {
     }
 
     @Test
+    void updateSchedule_shouldCallRepository() {
+        String id = "test-id";
+        String jobName = "testJob";
+        String cron = "0 0 * * * *";
+        Map<String, String> params = Map.of("key", "value");
+
+        service.updateSchedule(id, jobName, cron, params);
+
+        verify(repository).update(eq(id), eq(jobName), eq(cron), eq(params));
+    }
+
+    @Test
     void cancelSchedule_shouldCallRepository() {
         String id = "test-id";
         service.cancelSchedule(id);

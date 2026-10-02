@@ -4,7 +4,7 @@ import {
   ApiBlueprint,
 } from '@backstage/frontend-plugin-api';
 
-import { rootRouteRef, jobRunRouteRef } from './routes';
+import { rootRouteRef, jobRunRouteRef, scheduleRouteRef } from './routes';
 import { batchConsoleApiRef, BatchConsoleApiClient } from './api/BatchConsoleApi';
 import { discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
 
@@ -38,11 +38,21 @@ export const jobRunPage = PageBlueprint.make({
   },
 });
 
+export const schedulePage = PageBlueprint.make({
+  name: 'schedulePage',
+  params: {
+    path: '/platform/batch/schedules',
+    routeRef: scheduleRouteRef,
+    loader: () => import('./components/SchedulePage').then(m => <m.SchedulePage />),
+  },
+});
+
 export const batchConsolePlugin = createFrontendPlugin({
   pluginId: 'batch-console',
-  extensions: [batchConsolePage, jobRunPage, batchConsoleApi],
+  extensions: [batchConsolePage, jobRunPage, schedulePage, batchConsoleApi],
   routes: {
     root: rootRouteRef,
     jobRun: jobRunRouteRef,
+    schedules: scheduleRouteRef,
   }
 });
