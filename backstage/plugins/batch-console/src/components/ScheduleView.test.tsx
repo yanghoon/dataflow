@@ -1,21 +1,12 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { SchedulePage } from './SchedulePage';
+import { ScheduleView } from './ScheduleView';
 import { TestApiProvider, wrapInTestApp } from '@backstage/test-utils';
 import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
   getJobNames: jest.fn().mockResolvedValue(['testJob']),
-  getJobs: jest.fn().mockResolvedValue([
-    {
-      name: 'testJob',
-      restartable: true,
-      hasSchema: false,
-      totalExecutions: 3,
-      lastStatus: 'COMPLETED',
-      lastExecutionTime: '2026-10-01T12:00:00Z',
-    },
-  ]),
+  getJobs: jest.fn().mockResolvedValue([]),
   getJobSchema: jest.fn().mockResolvedValue(null),
   runJob: jest.fn().mockResolvedValue({ executionId: 101 }),
   getSchedules: jest.fn().mockResolvedValue([
@@ -24,9 +15,9 @@ const mockApi = {
       jobName: 'testJob',
       cronExpression: '0 0 * * * *',
       parameters: { key1: 'val1' },
-      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-      lastExecutionTime: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      lastStatus: 'SUCCESS',
+      createdAt: null, // Test null createdAt -> '-'
+      lastExecutionTime: null,
+      lastStatus: null, // Test null lastStatus -> '-'
     },
   ]),
   createSchedule: jest.fn().mockResolvedValue({ id: 'sched-2' }),
@@ -38,12 +29,12 @@ const mockAlertApi = {
   post: jest.fn(),
 };
 
-describe('SchedulePage', () => {
+describe('ScheduleView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders scheduled jobs table with new columns and opens create dialog', async () => {
+  it('renders columns in new order and displays "-" for null values', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -52,7 +43,7 @@ describe('SchedulePage', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <SchedulePage />
+          <ScheduleView />
         </TestApiProvider>
       )
     );
@@ -61,27 +52,25 @@ describe('SchedulePage', () => {
       expect(screen.getByText('Scheduled Jobs')).toBeInTheDocument();
       expect(screen.getByText('testJob')).toBeInTheDocument();
       expect(screen.getByText('0 0 * * * *')).toBeInTheDocument();
-      expect(screen.getByText('SUCCESS')).toBeInTheDocument();
     });
 
-    // Check table headers
-    expect(screen.getByText('Job Name')).toBeInTheDocument();
-    expect(screen.getByText('Cron Expression')).toBeInTheDocument();
-    expect(screen.getByText('Created At')).toBeInTheDocument();
-    expect(screen.getByText('Last Run')).toBeInTheDocument();
-    expect(screen.getByText('Last Status')).toBeInTheDocument();
-    expect(screen.getByText('Actions')).toBeInTheDocument();
+    // Check table headers in order: Job Name -> Cron Expression -> Last Status -> Last Run -> Created At -> Actions
+    const headers = screen.getAllByRole('columnheader').map(th => th.textContent);
+    expect(headers).toEqual([
+      'Job Name',
+      'Cron Expression',
+      'Last Status',
+      'Last Run',
+      'Created At',
+      'Actions',
+    ]);
 
-    // Click Create button
-    const createBtn = screen.getByRole('button', { name: 'Create' });
-    fireEvent.click(createBtn);
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Register Schedule' })).toBeInTheDocument();
-    });
+    // Check that null createdAt and lastStatus render as '-'
+    const hyphenElements = screen.getAllByText('-');
+    expect(hyphenElements.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('expands Key-Value parameters when row is clicked', async () => {
+  it('renders Outlined Run text button, History, Edit, and Delete action buttons', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -90,7 +79,41 @@ describe('SchedulePage', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <SchedulePage />
+          <ScheduleView />
+        </TestApiProvider>
+      )
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('testJob')).toBeInTheDocument();
+    });
+
+    // Outlined Run text button
+    const runBtn = screen.getByRole('button', { name: 'Run testJob' });
+    expect(runBtn).toBeInTheDocument();
+    expect(runBtn.textContent).toContain('Run');
+
+    // History button
+    const historyLink = screen.getByLabelText('View Execution History');
+    expect(historyLink).toHaveAttribute('href', '/spring-batch');
+
+    // Edit button
+    expect(screen.getByLabelText('Edit testJob')).toBeInTheDocument();
+
+    // Delete button
+    expect(screen.getByLabelText('Delete testJob')).toBeInTheDocument();
+  });
+
+  it('expands Key-Value parameters grid card when row is clicked', async () => {
+    render(
+      wrapInTestApp(
+        <TestApiProvider
+          apis={[
+            [batchConsoleApiRef, mockApi],
+            [alertApiRef, mockAlertApi],
+          ]}
+        >
+          <ScheduleView />
         </TestApiProvider>
       )
     );
@@ -110,7 +133,7 @@ describe('SchedulePage', () => {
     });
   });
 
-  it('opens Run Job modal and executes job', async () => {
+  it('opens RunJobDialog with prefilled parameters and executes job', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -119,7 +142,7 @@ describe('SchedulePage', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <SchedulePage />
+          <ScheduleView />
         </TestApiProvider>
       )
     );
@@ -137,7 +160,6 @@ describe('SchedulePage', () => {
       expect(screen.getByDisplayValue('val1')).toBeInTheDocument();
     });
 
-    // Click Run inside modal
     const executeBtn = screen.getByRole('button', { name: 'Run' });
     fireEvent.click(executeBtn);
 
@@ -149,28 +171,6 @@ describe('SchedulePage', () => {
     });
   });
 
-  it('has history button linking to /spring-batch', async () => {
-    render(
-      wrapInTestApp(
-        <TestApiProvider
-          apis={[
-            [batchConsoleApiRef, mockApi],
-            [alertApiRef, mockAlertApi],
-          ]}
-        >
-          <SchedulePage />
-        </TestApiProvider>
-      )
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('testJob')).toBeInTheDocument();
-    });
-
-    const historyLink = screen.getByLabelText('View Execution History');
-    expect(historyLink).toHaveAttribute('href', '/spring-batch');
-  });
-
   it('calls cancelSchedule when delete button is clicked', async () => {
     render(
       wrapInTestApp(
@@ -180,7 +180,7 @@ describe('SchedulePage', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <SchedulePage />
+          <ScheduleView />
         </TestApiProvider>
       )
     );

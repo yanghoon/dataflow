@@ -64,30 +64,25 @@ public class DbJobSchedulerRepository implements JobSchedulerRepository {
 
                     if (isPicked) {
                         lastStatus = "RUNNING";
-                    }
-
-                    if (lastSuccess != null && lastFailure != null) {
+                    } else if (lastSuccess == null && lastFailure == null) {
+                        // 실행된 적이 없으면 상태 없음 (-)
+                        lastStatus = null;
+                        lastExecutionTime = null;
+                    } else if (lastSuccess != null && lastFailure != null) {
                         if (lastSuccess.isAfter(lastFailure)) {
                             lastExecutionTime = lastSuccess;
-                            if (lastStatus == null) {
-                                lastStatus = "SUCCESS";
-                            }
+                            lastStatus = "SUCCESS";
                         } else {
                             lastExecutionTime = lastFailure;
-                            if (lastStatus == null) {
-                                lastStatus = "FAILED";
-                            }
+                            lastStatus = "FAILED";
                         }
                     } else if (lastSuccess != null) {
                         lastExecutionTime = lastSuccess;
-                        if (lastStatus == null) {
-                            lastStatus = "SUCCESS";
-                        }
-                    } else if (lastFailure != null) {
+                        lastStatus = "SUCCESS";
+                    } else {
+                        // lastFailure만 존재하는 경우
                         lastExecutionTime = lastFailure;
-                        if (lastStatus == null) {
-                            lastStatus = "FAILED";
-                        }
+                        lastStatus = "FAILED";
                     }
 
                     result.add(new ScheduleDto(

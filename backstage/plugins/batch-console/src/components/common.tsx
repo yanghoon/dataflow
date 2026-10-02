@@ -1,5 +1,8 @@
 import Chip from '@material-ui/core/Chip';
 import Typography from '@material-ui/core/Typography';
+import Box from '@material-ui/core/Box';
+import Grid from '@material-ui/core/Grid';
+import { useTheme } from '@material-ui/core/styles';
 import yaml from 'yaml';
 
 export const formatRelativeOrAbsoluteTime = (dateString?: string | null): string => {
@@ -72,3 +75,50 @@ export const toYaml = (obj: any): string => {
     return JSON.stringify(obj, null, 2);
   }
 };
+
+export const KeyValueParametersView = ({ parameters }: { parameters?: Record<string, any> }) => {
+  const theme = useTheme();
+  const entries = parameters ? Object.entries(parameters) : [];
+
+  return (
+    <Box
+      margin={2}
+      p={2}
+      borderRadius={4}
+      style={{
+        backgroundColor: theme.palette.type === 'dark' ? theme.palette.background.paper : '#f9f9f9',
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <Typography variant="subtitle2" gutterBottom style={{ fontWeight: 600 }}>
+        Parameters:
+      </Typography>
+      {entries.length > 0 ? (
+        <Grid container spacing={1}>
+          {entries.map(([key, value]) => (
+            <Grid item xs={12} sm={6} md={4} key={key}>
+              <Box
+                p={1}
+                borderRadius={4}
+                style={{
+                  backgroundColor: theme.palette.type === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#ffffff',
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Typography variant="caption" color="textSecondary" style={{ fontWeight: 600 }}>
+                  {key}
+                </Typography>
+                <Typography variant="body2" style={{ wordBreak: 'break-all' }}>
+                  {String(value)}
+                </Typography>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Typography variant="body2" color="textSecondary">-</Typography>
+      )}
+    </Box>
+  );
+};
+

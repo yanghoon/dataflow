@@ -21,7 +21,7 @@ const mockApi = {
       hasSchema: true,
       totalExecutions: 2,
       lastStatus: 'FAILED',
-      lastExecutionTime: '2026-08-01T10:00:00Z', // > 15 days
+      lastExecutionTime: '2026-08-01T10:00:00Z',
     },
   ]),
   getJobSchema: jest.fn(),
@@ -33,7 +33,7 @@ const mockApi = {
 };
 
 describe('BatchJobsPage', () => {
-  it('renders rich metadata columns and action links', async () => {
+  it('renders rich metadata columns and action buttons', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider apis={[[batchConsoleApiRef, mockApi]]}>
@@ -67,9 +67,9 @@ describe('BatchJobsPage', () => {
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
     expect(screen.getByText('FAILED')).toBeInTheDocument();
 
-    // Check action buttons
-    const runBtn = screen.getByLabelText('Run job1');
-    expect(runBtn).toHaveAttribute('href', '/platform/batch/jobs/job1');
+    // Check action buttons: Run is a button (not link), History is a link
+    const runBtn = screen.getByRole('button', { name: 'Run job1' });
+    expect(runBtn).toBeInTheDocument();
 
     const historyLinks = screen.getAllByLabelText('View History');
     expect(historyLinks[0]).toHaveAttribute('href', '/spring-batch');

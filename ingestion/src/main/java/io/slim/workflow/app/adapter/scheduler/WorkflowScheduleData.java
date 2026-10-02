@@ -19,7 +19,7 @@ public record WorkflowScheduleData(
 ) implements ScheduleAndData {
     public WorkflowScheduleData {
         gitProps = Optional.ofNullable(gitProps).orElse(GitProps.EMPTY);
-        createdAt = Optional.ofNullable(createdAt).orElseGet(Instant::now);
+        // createdAt은 들어온 값 그대로 유지. null이면 null 보존 (강제 Instant.now() 주입 제거)
     }
 
     public WorkflowScheduleData(Schedule schedule, GitProps gitProps, WorkflowJob content) {

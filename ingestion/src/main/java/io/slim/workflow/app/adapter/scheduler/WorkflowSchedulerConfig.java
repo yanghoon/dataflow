@@ -50,12 +50,14 @@ public class WorkflowSchedulerConfig {
                 )
             )
             .execute((taskInstance, ctx) -> {
-                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 시작", taskName, taskInstance.getId());
+                var taskData = (WorkflowScheduleData) taskInstance.getData();
+                String actualJobName = (taskData != null && taskData.content() != null)
+                    ? taskData.content().name()
+                    : taskInstance.getId();
 
-                var jobName = taskInstance.getId();
-                workflowLauncher.launch(jobName, null);
-
-                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 종료", taskName, taskInstance.getId());
+                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 시작", taskName, actualJobName);
+                workflowLauncher.launch(actualJobName, null);
+                log.info("[TASK-EXECUTE] taskName={} jobName={} 실행 종료", taskName, actualJobName);
             });
     }
 
