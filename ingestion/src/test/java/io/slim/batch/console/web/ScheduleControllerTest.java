@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -41,14 +42,18 @@ public class ScheduleControllerTest {
 
     @Test
     public void testGetSchedules() throws Exception {
-        ScheduleDto scheduleDto = new ScheduleDto("id-1", "testJob", "0 0 * * * *", Map.of("key", "value"));
+        Instant now = Instant.now();
+        ScheduleDto scheduleDto = new ScheduleDto("id-1", "testJob", "0 0 * * * *", Map.of("key", "value"), now, now, "SUCCESS");
         when(jobSchedulerService.getSchedules()).thenReturn(List.of(scheduleDto));
 
         mockMvc.perform(get("/api/batch/schedules"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("id-1"))
                 .andExpect(jsonPath("$[0].jobName").value("testJob"))
-                .andExpect(jsonPath("$[0].cronExpression").value("0 0 * * * *"));
+                .andExpect(jsonPath("$[0].cronExpression").value("0 0 * * * *"))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
+                .andExpect(jsonPath("$[0].lastExecutionTime").isNotEmpty())
+                .andExpect(jsonPath("$[0].lastStatus").value("SUCCESS"));
     }
 
     @Test

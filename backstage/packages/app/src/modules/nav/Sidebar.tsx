@@ -17,6 +17,7 @@ import { RequirePermission } from '@backstage/plugin-permission-react';
 import BuildIcon from '@material-ui/icons/Build';
 import WebIcon from '@material-ui/icons/Web';
 import ExtensionIcon from '@material-ui/icons/Extension';
+import ScheduleIcon from '@material-ui/icons/Schedule';
 import { toolsReadPermission, sitesReadPermission, siteToolBindingsReadPermission } from '@internal/plugin-platform-admin';
 
 export const SidebarContent = NavContentBlueprint.make({
@@ -29,6 +30,8 @@ export const SidebarContent = NavContentBlueprint.make({
       // Skipped items
       nav.take('page:search'); // Using search modal instead
       nav.take('page:notifications'); // Using NotificationsSidebarItem manually instead
+      nav.take('page:spring-batch-dashboard');
+      nav.take('page:spring-batch-dashboard/spring-batch-dashboard');
 
       return (
         <Sidebar>
@@ -49,6 +52,7 @@ export const SidebarContent = NavContentBlueprint.make({
             <RequirePermission permission={siteToolBindingsReadPermission} errorPage={<></>}>
               <SidebarItem icon={ExtensionIcon} to="/platform-sites/default/toolbindings" text="Tool Bindings" />
             </RequirePermission>
+            <SidebarItem icon={ScheduleIcon} to="/platform/batch/schedules" text="Spring Batch" />
             <SidebarDivider />
             <SidebarScrollWrapper>
               {nav.rest({ sortBy: 'title' })}

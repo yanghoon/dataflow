@@ -14,21 +14,27 @@ import io.slim.workflow.domain.WorkflowJob;
 public record WorkflowScheduleData(
     Schedule schedule, // Cached schedule derived from the job cron expression.
     GitProps gitProps, // Git metadata excluded from content comparisons.
-    WorkflowJob content // Job configuration used for execution and display.
+    WorkflowJob content, // Job configuration used for execution and display.
+    Instant createdAt // Registration timestamp.
 ) implements ScheduleAndData {
     public WorkflowScheduleData {
         gitProps = Optional.ofNullable(gitProps).orElse(GitProps.EMPTY);
+        createdAt = Optional.ofNullable(createdAt).orElseGet(Instant::now);
+    }
+
+    public WorkflowScheduleData(Schedule schedule, GitProps gitProps, WorkflowJob content) {
+        this(schedule, gitProps, content, Instant.now());
     }
 
     public static WorkflowScheduleData of(Schedule schedule, GitProperties gitProperties, WorkflowJob content) {
-        return new WorkflowScheduleData(schedule, GitProps.of(gitProperties), content);
+        return new WorkflowScheduleData(schedule, GitProps.of(gitProperties), content, Instant.now());
     }
 
     @Override public Schedule getSchedule() { return schedule; }
     @Override public Object getData() { return null; }
 
     public boolean hasSameContentAs(WorkflowScheduleData other) {
-        return content.equals(other.content); // Git metadata is intentionally ignored.
+        return content.equals(other.content); // Git metadata and createdAt are intentionally ignored.
     }
 
     public record GitProps(

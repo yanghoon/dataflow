@@ -50,20 +50,57 @@ public class DbJobSchedulerRepository implements JobSchedulerRepository {
         List<ScheduleDto> result = new ArrayList<>();
         List<ScheduledExecution<Object>> executions = schedulerClient.getScheduledExecutions();
         for (ScheduledExecution<Object> execution : executions) {
-            
             if ("workflowjob".equals(execution.getTaskInstance().getTaskName())) {
                 String id = execution.getTaskInstance().getId();
                 Object data = execution.getData();
                 if (data instanceof WorkflowScheduleData wsd) {
+                    Instant createdAt = wsd.createdAt();
+                    Instant lastSuccess = execution.getLastSuccess();
+                    Instant lastFailure = execution.getLastFailure();
+                    boolean isPicked = execution.isPicked();
+
+                    Instant lastExecutionTime = null;
+                    String lastStatus = null;
+
+                    if (isPicked) {
+                        lastStatus = "RUNNING";
+                    }
+
+                    if (lastSuccess != null && lastFailure != null) {
+                        if (lastSuccess.isAfter(lastFailure)) {
+                            lastExecutionTime = lastSuccess;
+                            if (lastStatus == null) {
+                                lastStatus = "SUCCESS";
+                            }
+                        } else {
+                            lastExecutionTime = lastFailure;
+                            if (lastStatus == null) {
+                                lastStatus = "FAILED";
+                            }
+                        }
+                    } else if (lastSuccess != null) {
+                        lastExecutionTime = lastSuccess;
+                        if (lastStatus == null) {
+                            lastStatus = "SUCCESS";
+                        }
+                    } else if (lastFailure != null) {
+                        lastExecutionTime = lastFailure;
+                        if (lastStatus == null) {
+                            lastStatus = "FAILED";
+                        }
+                    }
+
                     result.add(new ScheduleDto(
                         id,
                         wsd.content().name(),
                         wsd.content().cron(),
-                        wsd.content().props()
+                        wsd.content().props(),
+                        createdAt,
+                        lastExecutionTime,
+                        lastStatus
                     ));
                 }
             }
-        
         }
         return result;
     }

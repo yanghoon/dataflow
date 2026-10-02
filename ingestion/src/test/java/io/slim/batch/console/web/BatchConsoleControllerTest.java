@@ -17,14 +17,13 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.explore.JobExplorer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
 import org.springframework.test.context.ContextConfiguration;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(BatchConsoleController.class)
 @ContextConfiguration(classes = {BatchConsoleController.class})
@@ -39,16 +38,23 @@ public class BatchConsoleControllerTest {
     @MockitoBean
     private JobLauncher jobLauncher;
 
-    // Removed ObjectMapper
+    @MockitoBean
+    private JobExplorer jobExplorer;
 
     @Test
     public void testGetJobNames() throws Exception {
         when(jobRegistry.getJobNames()).thenReturn(List.of("job1", "job2"));
+        Job mockJob1 = mock(Job.class);
+        when(jobRegistry.getJob("job1")).thenReturn(mockJob1);
+        when(mockJob1.isRestartable()).thenReturn(true);
+        when(jobExplorer.getJobInstanceCount("job1")).thenReturn(5L);
 
         mockMvc.perform(get("/api/batch/jobs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0]").value("job1"))
-                .andExpect(jsonPath("$[1]").value("job2"));
+                .andExpect(jsonPath("$[0].name").value("job1"))
+                .andExpect(jsonPath("$[0].restartable").value(true))
+                .andExpect(jsonPath("$[0].totalExecutions").value(5))
+                .andExpect(jsonPath("$[1].name").value("job2"));
     }
 
     @Test

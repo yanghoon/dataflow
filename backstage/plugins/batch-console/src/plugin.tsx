@@ -20,14 +20,16 @@ export const batchConsoleApi = ApiBlueprint.make({
   ),
 });
 
-export const batchConsolePage = PageBlueprint.make({
-  name: 'batchConsole',
+export const batchJobsPage = PageBlueprint.make({
+  name: 'batchJobs',
   params: {
     path: '/platform/batch/jobs',
     routeRef: rootRouteRef,
-    loader: () => import('./components/BatchConsolePage').then(m => <m.BatchConsolePage />),
+    loader: () => import('./components/BatchJobsPage').then(m => <m.BatchJobsPage />),
   },
 });
+
+export const batchConsolePage = batchJobsPage;
 
 export const jobRunPage = PageBlueprint.make({
   name: 'jobRun',
