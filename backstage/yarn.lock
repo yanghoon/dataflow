@@ -7227,6 +7227,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fontsource/geist-mono@npm:^5.0.3":
+  version: 5.3.0
+  resolution: "@fontsource/geist-mono@npm:5.3.0"
+  checksum: 10c0/ad0dedd223b4ba2867f67d6d60d279b21b27f0a6ac12969f6706cf7cba2c557a34a80ec5783f3cd6e8083a071c413e9fb3af880e064cb37eee16563ecb706814
+  languageName: node
+  linkType: hard
+
+"@fontsource/geist-sans@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/geist-sans@npm:5.3.0"
+  checksum: 10c0/8df0e2aa46ad701195a2c9d7de9bd9165a5814c4086a10b97cfa76a4548ea2c602c259b3132b6c08906b1708d92d5df03c3e4d77b81a728bff259ff328e383a6
+  languageName: node
+  linkType: hard
+
 "@google-cloud/container@npm:^5.0.0":
   version: 5.19.0
   resolution: "@google-cloud/container@npm:5.19.0"
@@ -7577,6 +7591,26 @@ __metadata:
     msw: "npm:^1.0.0"
     react: "npm:^16.13.1 || ^17.0.0 || ^18.0.0"
     react-use: "npm:^17.2.4"
+  peerDependencies:
+    react: ^16.13.1 || ^17.0.0 || ^18.0.0
+  languageName: unknown
+  linkType: soft
+
+"@internal/backstage-plugin-theme-vercel@workspace:^, @internal/backstage-plugin-theme-vercel@workspace:plugins/theme-vercel":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-theme-vercel@workspace:plugins/theme-vercel"
+  dependencies:
+    "@backstage/cli": "npm:^0.36.4"
+    "@backstage/core-plugin-api": "npm:^1.12.8"
+    "@backstage/frontend-plugin-api": "npm:^0.17.3"
+    "@backstage/frontend-test-utils": "npm:^0.6.2"
+    "@backstage/plugin-app-react": "npm:^0.2.5"
+    "@backstage/theme": "npm:^0.7.3"
+    "@fontsource/geist-mono": "npm:^5.0.3"
+    "@fontsource/geist-sans": "npm:^5.3.0"
+    "@material-ui/core": "npm:^4.12.2"
+    "@testing-library/react": "npm:^14.0.0"
+    react: "npm:^18.0.2"
   peerDependencies:
     react: ^16.13.1 || ^17.0.0 || ^18.0.0
   languageName: unknown
@@ -15955,6 +15989,7 @@ __metadata:
     "@backstage/ui": "npm:^0.17.0"
     "@internal/backstage-plugin-batch-console": "workspace:^"
     "@internal/backstage-plugin-settings": "workspace:^"
+    "@internal/backstage-plugin-theme-vercel": "workspace:^"
     "@internal/plugin-platform-admin": "workspace:*"
     "@jikwan/backstage-plugin-spring-batch-dashboard": "workspace:*"
     "@material-ui/core": "npm:^4.12.2"

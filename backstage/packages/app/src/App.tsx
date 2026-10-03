@@ -5,6 +5,7 @@ import { navModule } from './modules/nav';
 import { springBatchFrontendPlugin } from '@jikwan/backstage-plugin-spring-batch-dashboard/src';
 import platformAdminPlugin from '@internal/plugin-platform-admin';
 import batchConsolePlugin from '@internal/backstage-plugin-batch-console';
+import { themeVercelPlugin, themeVercelModule } from '@internal/backstage-plugin-theme-vercel';
 
 export default createApp({
   features: [
@@ -12,5 +13,7 @@ export default createApp({
     springBatchFrontendPlugin,
     platformAdminPlugin,
     batchConsolePlugin,
+    themeVercelPlugin,
+    themeVercelModule,
   ],
 });

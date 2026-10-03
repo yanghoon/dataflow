@@ -41,6 +41,7 @@
     "@backstage/ui": "^0.17.0",
     "@internal/backstage-plugin-batch-console": "workspace:^",
     "@internal/backstage-plugin-settings": "workspace:^",
+    "@internal/backstage-plugin-theme-vercel": "workspace:^",
     "@internal/plugin-platform-admin": "workspace:*",
     "@jikwan/backstage-plugin-spring-batch-dashboard": "workspace:*",
     "@material-ui/core": "^4.12.2",
