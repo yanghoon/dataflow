@@ -1,0 +1,34 @@
+{
+  "name": "@internal/backstage-plugin-batch-console-backend",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "license": "Apache-2.0",
+  "private": true,
+  "backstage": {
+    "role": "backend-plugin",
+    "pluginId": "batch-console"
+  },
+  "scripts": {
+    "build": "backstage-cli package build",
+    "lint": "backstage-cli package lint",
+    "test": "backstage-cli package test --passWithNoTests",
+    "clean": "backstage-cli package clean"
+  },
+  "dependencies": {
+    "@backstage/backend-plugin-api": "^1.5.0",
+    "@backstage/config": "^1.3.8",
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "@backstage/backend-test-utils": "^1.11.7",
+    "@backstage/cli": "^0.36.4",
+    "@types/express": "^4.17.6",
+    "@types/node": "^18",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

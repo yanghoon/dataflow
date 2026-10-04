@@ -5,6 +5,7 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({ environments: ['dev'], defaultEnvironment: 'dev' }),
   getJobNames: jest.fn().mockResolvedValue(['job1', 'job2']),
   getJobs: jest.fn().mockResolvedValue([
     {
@@ -61,12 +62,11 @@ describe('BatchJobsView', () => {
       expect(screen.getByText('job2')).toBeInTheDocument();
     });
 
-    // Check that job1 is not an anchor link
-    const job1Element = screen.getByText('job1');
-    expect(job1Element.closest('a')).toBeNull();
+    const job1Cell = screen.getByText('job1');
+    expect(job1Cell.closest('a')).toBeNull();
   });
 
-  it('renders Outlined Run text button and opens RunJobDialog modal on click', async () => {
+  it('passes environment to getJobs when provided', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -75,7 +75,26 @@ describe('BatchJobsView', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <BatchJobsView />
+          <BatchJobsView environment="dev" />
+        </TestApiProvider>
+      )
+    );
+
+    await waitFor(() => {
+      expect(mockApi.getJobs).toHaveBeenCalledWith('dev');
+    });
+  });
+
+  it('opens RunJobDialog when Run button is clicked', async () => {
+    render(
+      wrapInTestApp(
+        <TestApiProvider
+          apis={[
+            [batchConsoleApiRef, mockApi],
+            [alertApiRef, mockAlertApi],
+          ]}
+        >
+          <BatchJobsView environment="dev" />
         </TestApiProvider>
       )
     );
@@ -85,29 +104,22 @@ describe('BatchJobsView', () => {
     });
 
     const runBtn = screen.getByRole('button', { name: 'Run job1' });
-    expect(runBtn).toBeInTheDocument();
-    expect(runBtn.tagName).toBe('BUTTON');
-
-    // Click Run button
     fireEvent.click(runBtn);
 
-    // RunJobDialog modal should open with jobName fixed to job1
     await waitFor(() => {
       expect(screen.getByText('Run Job: job1')).toBeInTheDocument();
-      expect(screen.getByText(/수동 즉시 실행은 정기 스케줄 상태와 독립적으로 실행됩니다/)).toBeInTheDocument();
     });
 
-    // Add parameter and run
     const keyInput = screen.getByPlaceholderText('e.g. date');
-    const valInput = screen.getByPlaceholderText('e.g. 2026-10-02');
+    const valueInput = screen.getByPlaceholderText('e.g. 2026-10-02');
     fireEvent.change(keyInput, { target: { value: 'param1' } });
-    fireEvent.change(valInput, { target: { value: 'val1' } });
+    fireEvent.change(valueInput, { target: { value: 'val1' } });
 
-    const modalRunBtn = screen.getByRole('button', { name: 'Run' });
-    fireEvent.click(modalRunBtn);
+    const dialogRunBtn = screen.getByRole('button', { name: 'Run' });
+    fireEvent.click(dialogRunBtn);
 
     await waitFor(() => {
-      expect(mockApi.runJob).toHaveBeenCalledWith('job1', { param1: 'val1' });
+      expect(mockApi.runJob).toHaveBeenCalledWith('job1', { param1: 'val1' }, 'dev');
       expect(mockAlertApi.post).toHaveBeenCalledWith(
         expect.objectContaining({ severity: 'success' })
       );

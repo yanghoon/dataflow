@@ -41,22 +41,23 @@ const CRON_PRESETS = [
 ];
 
 export interface ScheduleViewProps {
+  environment?: string;
   createDialogOpen?: boolean;
   onCloseCreateDialog?: () => void;
 }
 
-export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: ScheduleViewProps) => {
+export const ScheduleView = ({ environment, createDialogOpen, onCloseCreateDialog }: ScheduleViewProps) => {
   const theme = useTheme();
   const api = useApi(batchConsoleApiRef);
   const alertApi = useApi(alertApiRef);
 
   const { value: schedules, loading, retry } = useAsyncRetry(async () => {
-    return await api.getSchedules();
-  }, [api]);
+    return await api.getSchedules(environment);
+  }, [api, environment]);
 
   const { value: jobNames } = useAsync(async () => {
-    return await api.getJobNames();
-  }, [api]);
+    return await api.getJobNames(environment);
+  }, [api, environment]);
 
   // Expansion state for Key-Value parameters detail panel
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -87,12 +88,15 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
     setCronExpression('0 0 * * * *');
     setParams({});
     if (defaultJob) {
-      api.getJobSchema(defaultJob).then(setJobSchema).catch(() => setJobSchema(null));
+      api
+        .getJobSchema(defaultJob, environment)
+        .then(setJobSchema)
+        .catch(() => setJobSchema(null));
     } else {
       setJobSchema(null);
     }
     setDialogOpen(true);
-  }, [api, jobNames]);
+  }, [api, jobNames, environment]);
 
   useEffect(() => {
     if (createDialogOpen) {
@@ -113,7 +117,7 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
     setCronExpression(item.cronExpression);
     setParams(item.parameters || {});
     try {
-      const schema = await api.getJobSchema(item.jobName);
+      const schema = await api.getJobSchema(item.jobName, environment);
       setJobSchema(schema);
     } catch {
       setJobSchema(null);
@@ -124,7 +128,7 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
   const handleJobChange = async (job: string) => {
     setSelectedJob(job);
     try {
-      const schema = await api.getJobSchema(job);
+      const schema = await api.getJobSchema(job, environment);
       setJobSchema(schema);
     } catch {
       setJobSchema(null);
@@ -140,7 +144,7 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
 
   const handleDelete = async (id: string) => {
     try {
-      await api.cancelSchedule(id);
+      await api.cancelSchedule(id, environment);
       alertApi.post({ message: 'Schedule cancelled successfully', severity: 'success' });
       retry();
     } catch (e: any) {
@@ -160,10 +164,10 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
 
     try {
       if (editingId) {
-        await api.updateSchedule(editingId, selectedJob, cronExpression, params);
+        await api.updateSchedule(editingId, selectedJob, cronExpression, params, environment);
         alertApi.post({ message: 'Schedule updated successfully', severity: 'success' });
       } else {
-        await api.createSchedule(selectedJob, cronExpression, params);
+        await api.createSchedule(selectedJob, cronExpression, params, environment);
         alertApi.post({ message: 'Schedule registered successfully', severity: 'success' });
       }
       handleCloseDialog();
@@ -422,6 +426,7 @@ export const ScheduleView = ({ createDialogOpen, onCloseCreateDialog }: Schedule
         open={runDialogOpen}
         jobName={runJobName}
         initialParameters={runJobParams}
+        environment={environment}
         onClose={() => setRunDialogOpen(false)}
         onSuccess={() => retry()}
       />

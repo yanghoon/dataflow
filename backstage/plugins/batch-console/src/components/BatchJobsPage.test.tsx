@@ -5,6 +5,7 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { jobRunRouteRef } from '../routes';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({ environments: ['dev'], defaultEnvironment: 'dev' }),
   getJobNames: jest.fn().mockResolvedValue(['job1', 'job2']),
   getJobs: jest.fn().mockResolvedValue([
     {

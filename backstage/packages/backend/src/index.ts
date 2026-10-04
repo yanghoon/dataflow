@@ -72,4 +72,7 @@ backend.add(import('@backstage/plugin-mcp-actions-backend'));
 // @ts-ignore
 backend.add(import('@jikwan/backstage-plugin-spring-batch-dashboard-backend'));
 
+// Batch Console
+backend.add(import('@internal/backstage-plugin-batch-console-backend'));
+
 backend.start();

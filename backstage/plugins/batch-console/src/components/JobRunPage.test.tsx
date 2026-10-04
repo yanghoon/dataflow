@@ -5,6 +5,7 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({ environments: ['dev'], defaultEnvironment: 'dev' }),
   getJobNames: jest.fn(),
   getJobSchema: jest.fn().mockResolvedValue(null), // fallback mode
   runJob: jest.fn().mockResolvedValue({ executionId: 101 }),
@@ -20,6 +21,10 @@ jest.mock('@backstage/core-plugin-api', () => ({
 }));
 
 describe('JobRunPage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders and runs fallback form', async () => {
     render(
       wrapInTestApp(
@@ -38,7 +43,7 @@ describe('JobRunPage', () => {
     fireEvent.click(runBtn);
 
     await waitFor(() => {
-      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', {});
+      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', {}, undefined);
       expect(mockAlertApi.post).toHaveBeenCalledWith(expect.objectContaining({
         message: expect.stringContaining('101'),
         severity: 'success'

@@ -5,6 +5,10 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({
+    environments: ['dev', 'prod'],
+    defaultEnvironment: 'dev',
+  }),
   getJobNames: jest.fn().mockResolvedValue(['testJob1', 'testJob2']),
   getJobs: jest.fn().mockResolvedValue([
     {
@@ -51,7 +55,7 @@ describe('BatchConsolePage', () => {
     jest.clearAllMocks();
   });
 
-  it('renders Scheduled tab by default with Create button', async () => {
+  it('renders Scheduled tab by default with Create button and environment buttons', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -71,6 +75,12 @@ describe('BatchConsolePage', () => {
 
     // Create button should be visible in Scheduled tab
     expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument();
+
+    // Environment buttons rendered
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'dev' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'prod' })).toBeInTheDocument();
+    });
 
     // Scheduled content rendered
     await waitFor(() => {
@@ -104,6 +114,55 @@ describe('BatchConsolePage', () => {
       expect(screen.getByText('Spring Batch Jobs (2)')).toBeInTheDocument();
       expect(screen.getByText('testJob1')).toBeInTheDocument();
       expect(screen.getByText('testJob2')).toBeInTheDocument();
+    });
+  });
+
+  it('switches environment when clicking environment button', async () => {
+    render(
+      wrapInTestApp(
+        <TestApiProvider
+          apis={[
+            [batchConsoleApiRef, mockApi],
+            [alertApiRef, mockAlertApi],
+          ]}
+        >
+          <BatchConsolePage />
+        </TestApiProvider>
+      )
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'prod' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'prod' }));
+
+    await waitFor(() => {
+      expect(mockApi.getSchedules).toHaveBeenCalledWith('prod');
+    });
+  });
+
+  it('renders environment button when only one environment is configured', async () => {
+    mockApi.getEnvironments.mockResolvedValueOnce({
+      environments: ['dev'],
+      defaultEnvironment: 'dev',
+    });
+
+    render(
+      wrapInTestApp(
+        <TestApiProvider
+          apis={[
+            [batchConsoleApiRef, mockApi],
+            [alertApiRef, mockAlertApi],
+          ]}
+        >
+          <BatchConsolePage />
+        </TestApiProvider>
+      )
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'dev' })).toBeInTheDocument();
     });
   });
 });

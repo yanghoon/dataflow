@@ -7542,6 +7542,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@internal/backstage-plugin-batch-console-backend@workspace:*, @internal/backstage-plugin-batch-console-backend@workspace:plugins/batch-console-backend":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-batch-console-backend@workspace:plugins/batch-console-backend"
+  dependencies:
+    "@backstage/backend-plugin-api": "npm:^1.5.0"
+    "@backstage/backend-test-utils": "npm:^1.11.7"
+    "@backstage/cli": "npm:^0.36.4"
+    "@backstage/config": "npm:^1.3.8"
+    "@types/express": "npm:^4.17.6"
+    "@types/node": "npm:^18"
+    "@types/supertest": "npm:^7.2.1"
+    express: "npm:^4.17.1"
+    supertest: "npm:^7.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@internal/backstage-plugin-batch-console@workspace:^, @internal/backstage-plugin-batch-console@workspace:plugins/batch-console":
   version: 0.0.0-use.local
   resolution: "@internal/backstage-plugin-batch-console@workspace:plugins/batch-console"
@@ -16680,6 +16696,7 @@ __metadata:
     "@backstage/plugin-signals-backend": "npm:^0.3.17"
     "@backstage/plugin-techdocs-backend": "npm:^2.2.2"
     "@backstage/plugin-user-settings-backend": "npm:^0.4.5"
+    "@internal/backstage-plugin-batch-console-backend": "workspace:*"
     "@jikwan/backstage-plugin-spring-batch-dashboard-backend": "workspace:*"
     "@types/supertest": "npm:^7.2.1"
     app: "link:../app"

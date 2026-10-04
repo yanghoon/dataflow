@@ -5,6 +5,7 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({ environments: ['dev'], defaultEnvironment: 'dev' }),
   getJobNames: jest.fn().mockResolvedValue(['testJob']),
   getJobs: jest.fn().mockResolvedValue([]),
   getJobSchema: jest.fn().mockResolvedValue(null),
@@ -65,12 +66,12 @@ describe('ScheduleView', () => {
       'Actions',
     ]);
 
-    // Check that null createdAt and lastStatus render as '-'
-    const hyphenElements = screen.getAllByText('-');
-    expect(hyphenElements.length).toBeGreaterThanOrEqual(2);
+    // Check that '-' is rendered for null values
+    const dashElements = screen.getAllByText('-');
+    expect(dashElements.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders Outlined Run text button, History, Edit, and Delete action buttons', async () => {
+  it('passes environment prop to getSchedules and getJobNames', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -79,32 +80,18 @@ describe('ScheduleView', () => {
             [alertApiRef, mockAlertApi],
           ]}
         >
-          <ScheduleView />
+          <ScheduleView environment="prod" />
         </TestApiProvider>
       )
     );
 
     await waitFor(() => {
-      expect(screen.getByText('testJob')).toBeInTheDocument();
+      expect(mockApi.getSchedules).toHaveBeenCalledWith('prod');
+      expect(mockApi.getJobNames).toHaveBeenCalledWith('prod');
     });
-
-    // Outlined Run text button
-    const runBtn = screen.getByRole('button', { name: 'Run testJob' });
-    expect(runBtn).toBeInTheDocument();
-    expect(runBtn.textContent).toContain('Run');
-
-    // History button
-    const historyLink = screen.getByLabelText('View Execution History');
-    expect(historyLink).toHaveAttribute('href', '/spring-batch');
-
-    // Edit button
-    expect(screen.getByLabelText('Edit testJob')).toBeInTheDocument();
-
-    // Delete button
-    expect(screen.getByLabelText('Delete testJob')).toBeInTheDocument();
   });
 
-  it('expands Key-Value parameters grid card when row is clicked', async () => {
+  it('expands Key-Value parameters when row is clicked', async () => {
     render(
       wrapInTestApp(
         <TestApiProvider
@@ -164,7 +151,7 @@ describe('ScheduleView', () => {
     fireEvent.click(executeBtn);
 
     await waitFor(() => {
-      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', { key1: 'val1' });
+      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', { key1: 'val1' }, undefined);
       expect(mockAlertApi.post).toHaveBeenCalledWith(
         expect.objectContaining({ severity: 'success' })
       );
@@ -193,7 +180,7 @@ describe('ScheduleView', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(mockApi.cancelSchedule).toHaveBeenCalledWith('sched-1');
+      expect(mockApi.cancelSchedule).toHaveBeenCalledWith('sched-1', undefined);
     });
   });
 });

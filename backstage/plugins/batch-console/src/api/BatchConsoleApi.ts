@@ -20,14 +20,15 @@ export interface BatchJobItem {
 }
 
 export interface BatchConsoleApi {
-  getJobNames(): Promise<string[]>;
-  getJobs(): Promise<BatchJobItem[]>;
-  getJobSchema(jobName: string): Promise<any>;
-  runJob(jobName: string, params: Record<string, any>): Promise<{ executionId: number }>;
-  getSchedules(): Promise<ScheduleItem[]>;
-  createSchedule(jobName: string, cronExpression: string, parameters: Record<string, any>): Promise<{ id: string }>;
-  updateSchedule(id: string, jobName: string, cronExpression: string, parameters: Record<string, any>): Promise<void>;
-  cancelSchedule(id: string): Promise<void>;
+  getEnvironments(): Promise<{ environments: string[]; defaultEnvironment: string }>;
+  getJobNames(environment?: string): Promise<string[]>;
+  getJobs(environment?: string): Promise<BatchJobItem[]>;
+  getJobSchema(jobName: string, environment?: string): Promise<any>;
+  runJob(jobName: string, params: Record<string, any>, environment?: string): Promise<{ executionId: number }>;
+  getSchedules(environment?: string): Promise<ScheduleItem[]>;
+  createSchedule(jobName: string, cronExpression: string, parameters: Record<string, any>, environment?: string): Promise<{ id: string }>;
+  updateSchedule(id: string, jobName: string, cronExpression: string, parameters: Record<string, any>, environment?: string): Promise<void>;
+  cancelSchedule(id: string, environment?: string): Promise<void>;
 }
 
 export const batchConsoleApiRef = createApiRef<BatchConsoleApi>({
@@ -44,24 +45,35 @@ export class BatchConsoleApiClient implements BatchConsoleApi {
   }
 
   private async getBaseUrl() {
-    return `${await this.discoveryApi.getBaseUrl('proxy')}/spring-batch/api/batch`;
+    return await this.discoveryApi.getBaseUrl('batch-console');
   }
 
-  async getJobs(): Promise<BatchJobItem[]> {
+  private getEnvQuery(environment?: string): string {
+    return environment ? `?environment=${encodeURIComponent(environment)}` : '';
+  }
+
+  async getEnvironments(): Promise<{ environments: string[]; defaultEnvironment: string }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/jobs`);
+    const response = await this.fetchApi.fetch(`${baseUrl}/environments`);
+    if (!response.ok) throw new Error(`Failed to fetch environments: ${response.statusText}`);
+    return await response.json();
+  }
+
+  async getJobs(environment?: string): Promise<BatchJobItem[]> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await this.fetchApi.fetch(`${baseUrl}/jobs${this.getEnvQuery(environment)}`);
     if (!response.ok) throw new Error(`Failed to fetch jobs: ${response.statusText}`);
     return await response.json();
   }
 
-  async getJobNames(): Promise<string[]> {
-    const jobs = await this.getJobs();
+  async getJobNames(environment?: string): Promise<string[]> {
+    const jobs = await this.getJobs(environment);
     return jobs.map(j => (typeof j === 'string' ? j : j.name));
   }
 
-  async getJobSchema(jobName: string): Promise<any> {
+  async getJobSchema(jobName: string, environment?: string): Promise<any> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/jobs/${jobName}/schema`);
+    const response = await this.fetchApi.fetch(`${baseUrl}/jobs/${jobName}/schema${this.getEnvQuery(environment)}`);
     if (response.status === 204) {
       return null;
     }
@@ -69,9 +81,9 @@ export class BatchConsoleApiClient implements BatchConsoleApi {
     return await response.json();
   }
 
-  async runJob(jobName: string, params: Record<string, any>): Promise<{ executionId: number }> {
+  async runJob(jobName: string, params: Record<string, any>, environment?: string): Promise<{ executionId: number }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/jobs/${jobName}/executions`, {
+    const response = await this.fetchApi.fetch(`${baseUrl}/jobs/${jobName}/executions${this.getEnvQuery(environment)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,17 +103,16 @@ export class BatchConsoleApiClient implements BatchConsoleApi {
     return await response.json();
   }
 
-  
-  async getSchedules(): Promise<any[]> {
+  async getSchedules(environment?: string): Promise<any[]> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/schedules`);
+    const response = await this.fetchApi.fetch(`${baseUrl}/schedules${this.getEnvQuery(environment)}`);
     if (!response.ok) throw new Error(`Failed to fetch schedules: ${response.statusText}`);
     return await response.json();
   }
 
-  async createSchedule(jobName: string, cronExpression: string, parameters: Record<string, any>): Promise<{ id: string }> {
+  async createSchedule(jobName: string, cronExpression: string, parameters: Record<string, any>, environment?: string): Promise<{ id: string }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/schedules`, {
+    const response = await this.fetchApi.fetch(`${baseUrl}/schedules${this.getEnvQuery(environment)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -121,9 +132,9 @@ export class BatchConsoleApiClient implements BatchConsoleApi {
     return await response.json();
   }
 
-  async updateSchedule(id: string, jobName: string, cronExpression: string, parameters: Record<string, any>): Promise<void> {
+  async updateSchedule(id: string, jobName: string, cronExpression: string, parameters: Record<string, any>, environment?: string): Promise<void> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/schedules/${id}`, {
+    const response = await this.fetchApi.fetch(`${baseUrl}/schedules/${id}${this.getEnvQuery(environment)}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -141,9 +152,9 @@ export class BatchConsoleApiClient implements BatchConsoleApi {
     }
   }
 
-  async cancelSchedule(id: string): Promise<void> {
+  async cancelSchedule(id: string, environment?: string): Promise<void> {
     const baseUrl = await this.getBaseUrl();
-    const response = await this.fetchApi.fetch(`${baseUrl}/schedules/${id}`, {
+    const response = await this.fetchApi.fetch(`${baseUrl}/schedules/${id}${this.getEnvQuery(environment)}`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error(`Failed to cancel schedule: ${response.statusText}`);

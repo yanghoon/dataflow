@@ -5,6 +5,7 @@ import { batchConsoleApiRef } from '../api/BatchConsoleApi';
 import { alertApiRef } from '@backstage/core-plugin-api';
 
 const mockApi = {
+  getEnvironments: jest.fn().mockResolvedValue({ environments: ['dev'], defaultEnvironment: 'dev' }),
   getJobNames: jest.fn().mockResolvedValue(['testJob']),
   getJobs: jest.fn().mockResolvedValue([
     {
@@ -142,7 +143,7 @@ describe('SchedulePage', () => {
     fireEvent.click(executeBtn);
 
     await waitFor(() => {
-      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', { key1: 'val1' });
+      expect(mockApi.runJob).toHaveBeenCalledWith('testJob', { key1: 'val1' }, 'dev');
       expect(mockAlertApi.post).toHaveBeenCalledWith(
         expect.objectContaining({ severity: 'success' })
       );
@@ -193,7 +194,7 @@ describe('SchedulePage', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(mockApi.cancelSchedule).toHaveBeenCalledWith('sched-1');
+      expect(mockApi.cancelSchedule).toHaveBeenCalledWith('sched-1', 'dev');
     });
   });
 });

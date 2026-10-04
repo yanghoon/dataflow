@@ -19,6 +19,7 @@ export interface RunJobDialogProps {
   open: boolean;
   jobName: string;
   initialParameters?: Record<string, any>;
+  environment?: string;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -27,6 +28,7 @@ export const RunJobDialog = ({
   open,
   jobName,
   initialParameters,
+  environment,
   onClose,
   onSuccess,
 }: RunJobDialogProps) => {
@@ -73,7 +75,7 @@ export const RunJobDialog = ({
 
     try {
       setRunning(true);
-      const res = await api.runJob(jobName, payload);
+      const res = await api.runJob(jobName, payload, environment);
       alertApi.post({
         message: `Job ${jobName} triggered successfully (Execution ID: ${res.executionId})`,
         severity: 'success',

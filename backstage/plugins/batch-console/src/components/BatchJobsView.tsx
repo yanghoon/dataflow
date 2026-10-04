@@ -18,13 +18,17 @@ import { useTheme } from '@material-ui/core/styles';
 import { formatRelativeOrAbsoluteTime, StatusChip } from './common';
 import { RunJobDialog } from './RunJobDialog';
 
-export const BatchJobsView = () => {
+export interface BatchJobsViewProps {
+  environment?: string;
+}
+
+export const BatchJobsView = ({ environment }: BatchJobsViewProps = {}) => {
   const theme = useTheme();
   const api = useApi(batchConsoleApiRef);
 
   const { value: jobs, loading, retry } = useAsyncRetry(async () => {
-    return await api.getJobs();
-  }, [api]);
+    return await api.getJobs(environment);
+  }, [api, environment]);
 
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [selectedJobName, setSelectedJobName] = useState('');
@@ -127,6 +131,7 @@ export const BatchJobsView = () => {
       <RunJobDialog
         open={runModalOpen}
         jobName={selectedJobName}
+        environment={environment}
         onClose={() => setRunModalOpen(false)}
         onSuccess={() => retry()}
       />
