@@ -30,7 +30,6 @@ import io.slim.workflow.domain.WorkflowParams;
     "spring.sql.init.schemaLocations=classpath:sql/schema/db_scheduler.sql,classpath:sql/schema/customers/customers.sql,classpath:sql/schema/event_queue.sql,classpath:sql/schema/outbox_event.sql"
 })
 @Testcontainers
-@Import(DormantCustomerPolicyTest.TestConfig.class)
 public class DormantCustomerPolicyTest {
 
     @Container
@@ -42,14 +41,6 @@ public class DormantCustomerPolicyTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        public ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
-    }
 
     @Test
     @DisplayName("유닛테스트: 고유 Key 생성 로직 검증 (Edge Case)")

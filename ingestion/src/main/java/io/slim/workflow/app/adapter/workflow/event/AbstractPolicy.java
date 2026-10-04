@@ -95,7 +95,7 @@ public abstract class AbstractPolicy implements Workflow {
         if (events.isEmpty()) return;
 
         String insertSql = "INSERT INTO outbox_event (id, source, type, subject, datacontenttype, data, extensions, time, status) " +
-                           "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, 'READY') " +
+                           "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, 'PENDING') " +
                            "ON CONFLICT (source, id) DO NOTHING";
 
         int[] updateCounts = jdbcTemplate.getJdbcTemplate().batchUpdate(insertSql, new BatchPreparedStatementSetter() {

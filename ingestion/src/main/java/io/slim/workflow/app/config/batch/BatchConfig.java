@@ -1,17 +1,19 @@
-package io.slim.ingestion.batch.config;
-
-import java.beans.BeanProperty;
+package io.slim.workflow.app.config.batch;
 
 import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.support.MapJobRegistry;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
-import io.slim.workflow.app.service.JobTriggerService;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry;
 import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry.ConnectionProperties;
 import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry.DefaultConnectionRegistry;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import io.slim.workflow.app.service.JobTriggerService;
 
 @Configuration
 public class BatchConfig {
@@ -24,6 +26,12 @@ public class BatchConfig {
     @Bean
     JobRegistry jobRegistry() {
         return new MapJobRegistry();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean

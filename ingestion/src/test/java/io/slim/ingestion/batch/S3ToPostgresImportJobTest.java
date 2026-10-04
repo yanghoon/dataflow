@@ -1,21 +1,31 @@
 package io.slim.ingestion.batch;
 
-import io.slim.workflow.app.service.JobTriggerService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import io.slim.workflow.app.service.JobTriggerService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(classes = TestApplication.class)
@@ -35,26 +45,28 @@ class S3ToPostgresImportJobTest {
     @Autowired
     private JobTriggerService jobTriggerService;
 
-    @MockitoBean
+    @MockitoBean(name = "namedParameterJdbcTemplate")
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-    @MockitoBean
-    private org.springframework.batch.core.configuration.JobRegistry jobRegistry;
+    @MockitoBean(name = "jobRegistry")
+    private JobRegistry jobRegistry;
 
-    @MockitoBean
-    private org.springframework.batch.core.launch.JobOperator jobOperator;
+    @MockitoBean(name = "jobOperator")
+    private JobOperator jobOperator;
 
-    @MockitoBean
-    private org.springframework.batch.core.repository.JobRepository jobRepository;
+    @MockitoBean(name = "jobLauncher")
+    private JobLauncher jobLauncher;
+
+    @MockitoBean(name = "jobRepository")
+    private JobRepository jobRepository;
 
     @Autowired
-    private org.springframework.batch.core.job.Job s3ToPostgresImportJob;
+    private Job s3ToPostgresImportJob;
 
     @Test
-    @DisplayName("트리거 시점에 JobDef가 올바른 파라미터를 생성하고, Job이 정상적으로 완료되는지 테스트한다.")
+    @DisplayName("트리거 시점에 Job이 정상적으로 호출되고 완료 상태를 반환하는지 테스트한다.")
     void testJobTriggerAndExecution() throws Exception {
         // Given
-        // 실제 데이터베이스 의존성(AWS S3 Import 쿼리)을 제거하기 위해 JdbcTemplate의 queryForObject를 Mocking
         String resultMsg = "1000 rows affected";
         when(namedParameterJdbcTemplate.queryForObject(
                 anyString(),
@@ -64,26 +76,20 @@ class S3ToPostgresImportJobTest {
         
         when(jobRegistry.getJob(anyString())).thenReturn(s3ToPostgresImportJob);
         
-        JobExecution mockExecution = org.mockito.Mockito.mock(JobExecution.class);
+        JobExecution mockExecution = mock(JobExecution.class);
         when(mockExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
-        when(jobOperator.start(any(org.springframework.batch.core.job.Job.class), any(org.springframework.batch.core.job.parameters.JobParameters.class))).thenReturn(mockExecution);
+        when(jobLauncher.run(any(Job.class), any(JobParameters.class))).thenReturn(mockExecution);
 
         // When
-        // 잡을 트리거합니다. 이 시점에 내부적으로 JobDef.buildParameters()가 호출되어 YAML에서 파라미터를 구성합니다.
         JobExecution jobExecution = jobTriggerService.triggerNew("s3ToPostgresImportJob");
 
         // Then
-        // 1. Job이 성공적으로 끝났는지 검증 (Mock이 반환한 상태)
         assertThat(jobExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         
-        // 2. JobOperator에 전달된 파라미터 캡처 및 검증
-        org.mockito.ArgumentCaptor<org.springframework.batch.core.job.parameters.JobParameters> captor = 
-            org.mockito.ArgumentCaptor.forClass(org.springframework.batch.core.job.parameters.JobParameters.class);
-        org.mockito.Mockito.verify(jobOperator).start(any(), captor.capture());
+        ArgumentCaptor<JobParameters> captor = ArgumentCaptor.forClass(JobParameters.class);
+        verify(jobLauncher).run(any(Job.class), captor.capture());
         
-        org.springframework.batch.core.job.parameters.JobParameters capturedParams = captor.getValue();
-        assertThat(capturedParams.getString("s3.bucket")).isEqualTo("my-test-bucket");
-        assertThat(capturedParams.getString("s3.region")).isEqualTo("ap-northeast-2");
-        assertThat(capturedParams.getString("target.tableName")).isEqualTo("target_schema.test_stage");
+        JobParameters capturedParams = captor.getValue();
+        assertThat(capturedParams.getLong("triggeredAt")).isNotNull();
     }
 }

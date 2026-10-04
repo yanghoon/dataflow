@@ -29,7 +29,6 @@ import io.slim.workflow.domain.WorkflowParams;
     "spring.sql.init.schemaLocations=classpath:sql/schema/db_scheduler.sql,classpath:sql/schema/customers/customers.sql,classpath:sql/schema/event_queue.sql,classpath:sql/schema/outbox_event.sql"
 })
 @Testcontainers
-@Import(DormantCustomerPolicyYamlIntegrationTest.TestConfig.class)
 public class DormantCustomerPolicyYamlIntegrationTest {
 
     @Container
@@ -44,14 +43,6 @@ public class DormantCustomerPolicyYamlIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        public ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
-    }
 
     @Test
     @DisplayName("통합테스트: 실제 YAML 설정(application-dormant-policy.yml)을 읽고 Workflow를 실행하여 동작 검증")

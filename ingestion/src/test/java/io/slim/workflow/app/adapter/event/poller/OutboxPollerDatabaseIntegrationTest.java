@@ -37,14 +37,6 @@ import io.slim.workflow.app.adapter.event.poller.JdbcEventMessagePoller;
 @ActiveProfiles("outbox")
 class OutboxPollerDatabaseIntegrationTest {
 
-    @org.springframework.boot.test.context.TestConfiguration
-    static class TestConfig {
-        @org.springframework.context.annotation.Bean
-        public com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
-            return new com.fasterxml.jackson.databind.ObjectMapper();
-        }
-    }
-
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:alpine")

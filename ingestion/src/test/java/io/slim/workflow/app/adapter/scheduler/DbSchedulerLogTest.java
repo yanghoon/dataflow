@@ -9,14 +9,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import io.slim.ingestion.batch.BatchApplication;
+import io.slim.workflow.WorkflowApplication;
 
 import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(classes = BatchApplication.class)
+@SpringBootTest(classes = WorkflowApplication.class)
 @ActiveProfiles("default")
 @TestPropertySource(properties = {
     "spring.sql.init.mode=always",

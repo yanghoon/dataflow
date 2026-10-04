@@ -1,4 +1,7 @@
 spring:
+  batch:
+    job:
+      enabled: false
   datasource:
     url: jdbc:postgresql://localhost:5432/dataflow
     driverClassName: org.postgresql.Driver

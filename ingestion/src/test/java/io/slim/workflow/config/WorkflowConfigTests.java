@@ -7,10 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.test.context.ActiveProfiles;
 
 import io.slim.workflow.app.config.workflow.WorkflowProperties;
 import io.slim.workflow.config.WorkflowConfigTests.Config;
 
+@ActiveProfiles("workflow")
 @SpringBootTest(classes = Config.class)
 public class WorkflowConfigTests {
 

@@ -46,19 +46,13 @@ import org.springframework.boot.context.properties.bind.Bindable;
     "workflow.jobs.test-adhoc-job.type=postgres-fdw",
     "workflow.jobs.test-adhoc-job.enabled=true",
     "workflow.jobs.test-adhoc-job.props.targetTable=default_table",
-    "workflow.jobs.test-adhoc-job.allowedOverrides[0]=targetDate"
+    "workflow.jobs.test-adhoc-job.allowedOverrides[0]=targetDate",
+    "db-scheduler.polling-interval=200ms",
+    "db-scheduler.enable-immediate-execution=true"
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class WorkflowJobViewControllerIntegrationTest {
-
-    @TestConfiguration
-    static class Config {
-        @Bean
-        public ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
-    }
 
     @Autowired
     private WorkflowJobViewController controller;
@@ -130,7 +124,7 @@ class WorkflowJobViewControllerIntegrationTest {
                 ConfigurationProperty.class, Throwable.class);
         constructor.setAccessible(true);
         BindException bindException = constructor.newInstance(
-                ConfigurationPropertyName.of("targetDate"),
+                ConfigurationPropertyName.of("target-date"),
                 Bindable.of(LocalDate.class),
                 null,
                 new Exception("parse error")
@@ -144,6 +138,6 @@ class WorkflowJobViewControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(new ObjectMapper().writeValueAsString(overrideParams)))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.error").value(containsString("Binding failed for field 'targetDate'")));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.error").value(containsString("target-date")));
     }
 }
