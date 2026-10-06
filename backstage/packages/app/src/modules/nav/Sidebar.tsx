@@ -14,9 +14,11 @@ import ExtensionIcon from '@material-ui/icons/Extension';
 import ScheduleIcon from '@material-ui/icons/Schedule';
 import SettingsIcon from '@material-ui/icons/Settings';
 import NotificationsNoneIcon from '@material-ui/icons/NotificationsNone';
+import SecurityIcon from '@material-ui/icons/Security';
 
 import { RequirePermission } from '@backstage/plugin-permission-react';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
+import { policyEntityReadPermission } from '@backstage-community/plugin-rbac-common';
 import {
   toolsReadPermission,
   sitesReadPermission,
@@ -318,6 +320,13 @@ export const SidebarContent = NavContentBlueprint.make({
                 to="/platform-sites/default/toolbindings"
                 icon={ExtensionIcon}
                 text="Tool Bindings"
+              />
+            </RequirePermission>
+            <RequirePermission permission={policyEntityReadPermission} resourceRef={undefined} errorPage={<></>}>
+              <VercelSidebarItem
+                to="/rbac"
+                icon={SecurityIcon}
+                text="Role Management"
               />
             </RequirePermission>
 

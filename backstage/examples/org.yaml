@@ -1,17 +1,61 @@
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
+# ==============================================================================
+# 팀 (Group) 정의
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: admin-team
+  title: Platform Admin Team
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: manager-team
+  title: Service Operations Team
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: user-team
+  title: General Engineering Team
+spec:
+  type: team
+  children: []
+---
+# ==============================================================================
+# 사용자 (User) 정의
+# ==============================================================================
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
   name: guest
 spec:
-  memberOf: [guests]
+  memberOf: [admin-team]
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-group
 apiVersion: backstage.io/v1alpha1
-kind: Group
+kind: User
 metadata:
-  name: guests
+  name: admin
 spec:
-  type: team
-  children: []
+  memberOf: [admin-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: manager
+spec:
+  memberOf: [manager-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: user
+spec:
+  memberOf: [user-team]

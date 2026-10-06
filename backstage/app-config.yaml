@@ -146,6 +146,10 @@ permission:
     admin:
       users:
         - name: user:development/guest
+        - name: user:default/admin
+        - name: group:default/admin-team
+    policies-csv-file: ./rbac-policy.csv
+    policyFileReload: true
 
 # see https://backstage.io/docs/ai/mcp-actions for more details
 mcpActions:

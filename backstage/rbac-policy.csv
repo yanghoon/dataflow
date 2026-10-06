@@ -1,0 +1,43 @@
+# ==============================================================================
+# 1. 권한 정책 정의 (p)
+# Format: p, <roleEntityRef>, <permissionName>, <action>, <allow|deny>
+# ==============================================================================
+# [Manager 권한]
+p, role:default/manager, catalog.entity.read, read, allow
+p, role:default/manager, platform.sites.read, read, allow
+p, role:default/manager, platform.sites.toolbindings.read, read, allow
+p, role:default/manager, platform.sites.toolbindings.update, update, allow
+p, role:default/manager, batch.job.read, read, allow
+p, role:default/manager, batch.job.execute, create, allow
+
+# [User 권한]
+p, role:default/user, catalog.entity.read, read, allow
+p, role:default/user, techdocs.read, read, allow
+p, role:default/user, batch.job.read, read, allow
+
+# [옵션: UI에서 롤을 직접 편집/할당하고 싶을 때 아래 4줄 주석 해제]
+# p, role:default/manager, policy.entity.read, read, allow
+# p, role:default/manager, policy.entity.update, update, allow
+# p, role:default/user, policy.entity.read, read, allow
+# p, role:default/user, policy.entity.update, update, allow
+
+# ==============================================================================
+# 2. 팀(Group) 및 고정 사용자 롤 할당 (g)
+# Format: g, <userEntityRef | groupEntityRef>, <roleEntityRef>
+# ==============================================================================
+g, group:default/manager-team, role:default/manager
+g, user:default/manager, role:default/manager
+g, group:default/user-team, role:default/user
+g, user:default/user, role:default/user
+
+# ==============================================================================
+# 3. 로컬 테스트용 Guest 롤 스위칭 (아래 중 1줄만 활성화하여 테스트)
+# ==============================================================================
+# [A] Manager 권한 테스트 시 활성화:
+g, user:development/guest, role:default/manager
+
+# [B] User 권한 테스트 시 활성화 (위 줄 주석 처리 후 아래 주석 해제):
+# g, user:development/guest, role:default/user
+
+# [C] Admin 권한 테스트 시: 위 두 줄 모두 주석 처리
+# (app-config.yaml의 admin.users에 guest가 포함되어 자동 Admin 부여)
