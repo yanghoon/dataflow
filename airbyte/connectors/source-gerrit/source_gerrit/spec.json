@@ -29,6 +29,13 @@
         "title": "Page Size",
         "description": "Accounts per page for pagination (default: 100, max: 500)",
         "default": 100
+      },
+      "debug_records": {
+        "type": "boolean",
+        "order": 4,
+        "title": "Debug: Log Records",
+        "description": "If true, each received record is printed to the log (one line per record). Use only for debugging — can be very verbose for large datasets.",
+        "default": false
       }
     }
   }

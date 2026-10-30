@@ -91,6 +91,7 @@ class Accounts(GerritStream):
     def __init__(self, config: Mapping[str, Any], **kwargs):
         super().__init__(config, **kwargs)
         self.page_size = int(config.get("page_size", 100))
+        self.debug_records = bool(config.get("debug_records", False))
 
     def path(self, **kwargs) -> str:
         return "a/accounts/"
@@ -128,6 +129,8 @@ class Accounts(GerritStream):
             yielded_count = 0
             for rec in records:
                 rec.pop("_more_accounts", None)
+                if self.debug_records:
+                    logger.info(f"[RECORD #{yielded_count + 1}] {json.dumps(rec, ensure_ascii=False)}")
                 yielded_count += 1
                 yield rec
             logger.info(f"[PARSE] Extracted and yielded {yielded_count}/{raw_count} clean account records")
