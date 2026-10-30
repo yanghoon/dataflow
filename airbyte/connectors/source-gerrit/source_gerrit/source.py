@@ -77,8 +77,25 @@ class GerritStream(HttpStream):
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "properties": {},
             "additionalProperties": True,
+            "properties": {
+                "_account_id":   {"type": ["integer", "null"]},
+                "username":      {"type": ["string", "null"]},
+                "name":          {"type": ["string", "null"]},
+                "display_name":  {"type": ["string", "null"]},
+                "email":         {"type": ["string", "null"]},
+                "secondary_emails": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                },
+                "registered_on": {"type": ["string", "null"]},
+                "inactive":      {"type": ["boolean", "null"]},
+                "tags": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                },
+                "status":        {"type": ["string", "null"]},
+            },
         }
 
     def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
