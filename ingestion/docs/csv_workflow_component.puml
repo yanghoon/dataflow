@@ -1,0 +1,40 @@
+@startuml csv_workflow_component
+!include <C4/C4_Component>
+
+left to right direction
+
+title Component Diagram for CSV Ingestion Workflow
+
+Container(scheduler, "Scheduler", "Scheduling Engine", "Triggers jobs by jobName")
+
+Container_Boundary(batch_app, "Batch App") {
+    Component(job_store, "Job Store", "In-memory Map", "Looks up jobs by jobName")
+    Component(launcher, "Workflow Launcher", "Java / Spring", "Resolves job and starts workflow")
+    Component(workflow, "CSV Workflow", "Java / Spring Boot", "Orchestrates CSV ingestion")
+    Component(rest_client, "HTTP Client", "Spring Web / REST", "Fetches source CSV")
+    Component(s3_client, "Object Storage Client", "AWS SDK for S3", "Stores and streams CSV")
+    Component(pg_client, "Database Client", "PostgreSQL JDBC / Copy API", "Loads CSV and snapshots")
+}
+
+ContainerDb(postgres_db, "Database", "PostgreSQL", "Stores ingested CSV data")
+
+System_Ext(workflow_yaml, "Workflow YAML", "application-workflow.yaml", "Defines jobName, cron, and workflow settings")
+System_Ext(http_api, "External Data APIs", "REST / HTTPS", "Source of CSV data")
+System_Ext(s3_storage, "Object Storage", "S3 API", "Temporary raw CSV storage")
+
+Rel_R(workflow_yaml, job_store, "Loads workflow jobs", "YAML")
+Rel_R(scheduler, launcher, "Triggers with jobName", "Job execution")
+Rel_R(launcher, job_store, "Lookup by jobName", "In-process")
+Rel_R(launcher, workflow, "Dispatches by workflow type", "In-process")
+
+Rel_R(workflow, rest_client, "1. exportToCsv()", "Method")
+Rel_R(rest_client, http_api, "2. Download CSV", "HTTPS")
+
+Rel_R(workflow, s3_client, "3. uploadToS3()\n5. getObject()", "Method")
+Rel_R(s3_client, s3_storage, "4. PUT Temp File\n6. GET Object Stream", "S3 API")
+
+Rel_R(workflow, pg_client, "7. copyToPostgres()\n9. insertSnapshot()", "Method")
+Rel_R(pg_client, postgres_db, "8. DELETE/COPY CSV\n10. INSERT INTO ... SELECT", "JDBC / SQL")
+
+SHOW_LEGEND()
+@enduml

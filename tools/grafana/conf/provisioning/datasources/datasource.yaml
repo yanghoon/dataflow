@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL          # Grafana UI에 표시될 데이터소스 이름
+    type: postgres            # 데이터소스 플러그인 타입 (PostgreSQL)
+    access: proxy             # 서버(Grafana 백엔드)를 통해 DB로 직접 접근
+    uid: postgresql-ds        # 1: 고정 UID 지정 (대시보드의 datasource.uid와 반드시 일치해야 함)
+                              # 2: 모든 패널/타겟에 이 고정 UID를 하드코딩해서 사용하는 것을 권장함
+    # Mac 환경에서 호스트 OS의 localhost에 띄워진 DB에 접근하기 위한 주소
+    url: host.docker.internal:5432
+    user: postgres-local      # DB 접속 계정
+    secureJsonData:
+      password: "postgres-local" # DB 접속 비밀번호
+    jsonData:
+      database: dataflow      # 실제 쿼리를 실행할 대상 데이터베이스 (PostgreSQL 플러그인은 이 값이 필수임)
+      sslmode: disable        # 로컬 접속이므로 SSL 비활성화
+      postgresVersion: 1500   # 그라파나의 버전 표기법에 맞춰 15 * 100 = 1500으로 입력
+    isDefault: true           # UI에서 새 패널을 만들 때 기본 선택되도록 설정.
+                              # 단, 대시보드 프로비저닝에서는 ${DS_DEFAULT} 변수가 깨지므로 고정 UID 사용이 필수적임.

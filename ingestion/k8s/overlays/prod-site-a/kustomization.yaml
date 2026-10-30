@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: application-k8s
+    files:
+      - application-k8s.yaml=application-k8s.yaml
+
+secretGenerator:
+  - name: dataflow-ingestion-secrets
+    envs:
+      - .env.prod-site-a

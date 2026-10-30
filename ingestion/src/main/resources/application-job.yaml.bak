@@ -1,0 +1,125 @@
+# ============================================================
+# application-job.yaml
+# WorkflowJob scheduling, engine dispatch (WORKFLOW-only in this
+# scope; Spring Batch fields reserved but unused), S3 client,
+# and OpenFeign client configurations.
+# ============================================================
+
+# ------------------------------------------------------------
+# S3 client configurations — keyed by clientId
+# Referenced from workflow.jobs[*].where.s3ClientId
+# ------------------------------------------------------------
+s3:
+  clients:
+    sales-export-s3:                       # clientId
+      region: ap-northeast-2
+      bucket: data-platform-sales-export
+      endpoint: ""                         # empty = use default AWS endpoint
+      pathStyleAccess: false
+      # Actual credentials are NOT stored here — resolved at runtime
+      # via credentialRef against Secret store (Vault / K8s Secret)
+      credentialRef: s3-cred-sales
+      connectionTimeoutMs: 5000
+      socketTimeoutMs: 30000
+      maxConnections: 50
+
+    catalog-sync-s3:
+      region: ap-northeast-2
+      bucket: data-platform-catalog-sync
+      endpoint: ""
+      pathStyleAccess: false
+      credentialRef: s3-cred-catalog
+      connectionTimeoutMs: 5000
+      socketTimeoutMs: 30000
+      maxConnections: 50
+
+# ------------------------------------------------------------
+# OpenFeign client configurations — keyed by clientId
+# Referenced from workflow.jobs[*].where.feignClientId
+# ------------------------------------------------------------
+feign:
+  clients:
+    sales-api:                             # clientId
+      url: https://internal-api.corp/sales
+      connectTimeoutMs: 3000
+      readTimeoutMs: 10000
+      # Auth token / API key resolved via credentialRef, not inlined
+      credentialRef: http-cred-sales-api
+      loggerLevel: BASIC
+      retry:
+        maxAttempts: 3
+        backoffIntervalMs: 500
+
+    catalog-api:
+      url: https://internal-api.corp/catalog
+      connectTimeoutMs: 3000
+      readTimeoutMs: 15000
+      credentialRef: http-cred-catalog-api
+      loggerLevel: BASIC
+      retry:
+        maxAttempts: 3
+        backoffIntervalMs: 500
+
+# ------------------------------------------------------------
+# WorkflowJob registry
+# group      -> db-scheduler Task name (business application boundary)
+# jobName    -> db-scheduler TaskInstance id (must be unique within group)
+# engine     -> WORKFLOW (Activity-based) | SPRING_BATCH (reserved, unused here)
+# workflowType -> Workflow bean to dispatch to (WorkflowLauncher lookup key)
+# where.feignClientId / where.s3ClientId -> references into feign/s3 sections above
+# ------------------------------------------------------------
+workflow:
+  jobs:
+
+    # CSV export -> S3 upload -> Postgres CopyManager load
+    daily-sales-csv-export:
+      jobName: daily-sales-csv-export
+      group: sales-app
+      engine: WORKFLOW
+      workflowType: csv-export
+      cronExpression: "0 0 * * * *"        # every hour on the hour
+      enabled: true
+      where:
+        feignClientId: "sales-api"         # source data lookup
+        s3ClientId: "sales-export-s3"      # staging upload destination
+        s3KeyPrefix: "sales/csv-export/"
+        targetTable: "sales_raw"
+
+    # Remote PG (via FDW) -> local PG staging -> table swap
+    remote-pg-catalog-sync:
+      jobName: remote-pg-catalog-sync
+      group: inventory-app
+      engine: WORKFLOW
+      workflowType: remote-pg-sync
+      cronExpression: "0 0 2 * * *"        # daily at 02:00
+      enabled: true
+      where:
+        foreignTable: "remote_catalog.catalog_raw"
+        stagingTable: "catalog_staging"
+        targetTable: "catalog_raw"
+
+    # Paginated REST ingest via Spring Batch (fields reserved; batch scope excluded here)
+    full-catalog-paging-sync:
+      jobName: full-catalog-paging-sync
+      group: inventory-app
+      engine: SPRING_BATCH
+      springBatchJobName: catalogPagingJob
+      cronExpression: "0 0 3 * * *"        # daily at 03:00
+      enabled: false                       # disabled — out of scope for this milestone
+      where:
+        feignClientId: "catalog-api"
+        pageSize: "500"
+        targetTable: "catalog_raw"
+
+    # Key-Value 기반 동적 워크플로우 예시
+    key-value-sample-job:
+      jobName: key-value-sample-job
+      group: generic-app
+      engine: WORKFLOW
+      workflowType: key-value-workflow
+      cronExpression: "0 */5 * * * *"        # every 5 minutes
+      enabled: true
+      where:
+        myCustomKey1: "myCustomValue1"
+        targetSystem: "system-a"
+        actionType: "sync"

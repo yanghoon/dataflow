@@ -1,0 +1,86 @@
+@startuml
+
+skinparam rectangle {
+    BackgroundColor<<Command>> LightBlue
+    BackgroundColor<<Event>> Orange
+    BackgroundColor<<Policy>> Lavender
+    BackgroundColor<<Aggregate>> LightYellow
+    BackgroundColor<<ReadModel>> LightGreen
+    BackgroundColor<<ExternalSystem>> LightGray
+    BackgroundColor<<Assumption>> Pink
+}
+skinparam note {
+    BackgroundColor LightGreen
+    BorderColor Black
+}
+skinparam package {
+    BorderStyle dashed
+    BorderColor Gray
+}
+'skinparam ranksep 30
+'skinparam nodesep 20
+
+actor "Admin" as admin
+
+' --- Manage TaskInstance ---
+rectangle "ApplyWorkflowJob" <<Command>> as cmd_manage
+rectangle "WorkflowJob" <<Aggregate>> as agg_job
+rectangle "WorkflowJobChanged" <<Event>> as evt_job_changed
+
+admin -> cmd_manage
+cmd_manage -> agg_job
+agg_job -> evt_job_changed
+
+' --- Trigger Task Registration ---
+rectangle "ApplicationStarted" <<Event>> as evt_app_started
+
+rectangle {
+
+  ' Register Task
+  rectangle {
+    rectangle "Register Task" <<Policy>> as policy_register_task
+    rectangle "RegisterTask" <<Command>> as cmd_register_task
+    rectangle "db-scheduler" <<ExternalSystem>> as ext_scheduler
+    rectangle "TaskRegistered" <<Event>> as evt_task_registered
+    
+    policy_register_task -right-> cmd_register_task
+    cmd_register_task -right-> ext_scheduler
+    ext_scheduler -right-> evt_task_registered
+  }
+  
+  ' Register TaskInstance
+  rectangle {
+    rectangle "Register TaskInstance" <<Policy>> as policy_register_instance
+    rectangle "RegisterTaskInstance" <<Command>> as cmd_register_instance
+    rectangle "db-scheduler" <<ExternalSystem>> as ext_scheduler2
+    rectangle "TaskInstanceRegistered" <<Event>> as evt_instance_registered
+    
+    policy_register_instance -right-> cmd_register_instance
+    cmd_register_instance -right-> ext_scheduler2
+    ext_scheduler2 -right-> evt_instance_registered
+  }
+  
+  ' Schedule TaskInstance
+  rectangle {
+    rectangle "db-scheduler" <<ExternalSystem>> as ext_scheduler3
+    rectangle "TaskInstanceScheduled" <<Event>> as evt_scheduled
+    
+    ext_scheduler3 -right-> evt_scheduled
+  }
+
+  ' for layout
+  policy_register_task -[hidden]down- policy_register_instance
+  ext_scheduler2 -[hidden]down- ext_scheduler3
+}
+
+evt_app_started -[#gray,dashed]right-> policy_register_task
+evt_job_changed -[#gray,dashed]right-> policy_register_instance
+
+evt_app_started -[hidden]down- evt_job_changed
+
+' --- Due 시점 → 별도 다이어그램 경계 ---
+rectangle "Schedule TaskInstance" <<Policy>> as policy_schedule_boundary
+
+evt_scheduled -> policy_schedule_boundary
+
+@enduml

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dataflow-ingestion
+  labels:
+    app: dataflow-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dataflow-ingestion
+  template:
+    metadata:
+      labels:
+        app: dataflow-ingestion
+    spec:
+      containers:
+        - name: dataflow-ingestion
+          image: dataflow-ingestion
+          envFrom:
+            - secretRef:
+                name: dataflow-ingestion-secrets
+                optional: true
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: dataflow-ingestion-config

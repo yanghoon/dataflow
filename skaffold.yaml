@@ -1,0 +1,6 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: dataflow
+requires:
+  - path: ./ingestion/skaffold.yaml

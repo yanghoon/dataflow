@@ -1,0 +1,25 @@
+-- Domain Event Store (Transactional Outbox)
+-- Implements the CloudEvents 1.0 specification standard.
+CREATE TABLE IF NOT EXISTS outbox_event (
+    id VARCHAR(128) NOT NULL,              -- CloudEvent id
+    source VARCHAR(255) NOT NULL,          -- CloudEvent source
+    type VARCHAR(255) NOT NULL,            -- CloudEvent type
+    subject VARCHAR(255),                  -- CloudEvent subject (옵션)
+    datacontenttype VARCHAR(50),           -- CloudEvent datacontenttype
+    time TIMESTAMP WITH TIME ZONE NOT NULL,-- CloudEvent 발생 시각
+    data JSONB,                            -- CloudEvent data (본문 JSON)
+    extensions JSONB,                      -- CloudEvent 커스텀 확장 필드
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'SENT', 'CONFIRMED', 'RETRY_PENDING', 'FAILED', 'CANCELLED')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (source, id)               -- CloudEvents 스펙상 고유성 보장
+);
+
+-- Poller가 status와 type 조합으로 빠르게 조회하기 위한 복합 인덱스
+CREATE INDEX IF NOT EXISTS idx_outbox_event_status_type 
+ON outbox_event (status, type);
+
+-- 재시도 대기중인 이벤트를 빠르게 조회하기 위한 부분 인덱스
+CREATE INDEX IF NOT EXISTS idx_outbox_ready_retry 
+ON outbox_event ((extensions->>'next_retry_at')) 
+WHERE status = 'RETRY_PENDING';

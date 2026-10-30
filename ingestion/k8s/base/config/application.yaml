@@ -1,0 +1,8 @@
+spring:
+  profiles:
+    active: workflow
+
+logging:
+  level:
+    org.springframework.boot.autoconfigure.jdbc: DEBUG
+    org.springframework.jdbc.datasource.init: DEBUG

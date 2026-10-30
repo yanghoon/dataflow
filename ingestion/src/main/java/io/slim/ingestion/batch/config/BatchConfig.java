@@ -6,6 +6,12 @@ import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.support.MapJobRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import io.slim.ingestion.batch.v2.app.service.JobTriggerService;
+import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry;
+import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry.ConnectionProperties;
+import io.slim.ingestion.batch.job.config.v2.ConnectionRegistry.DefaultConnectionRegistry;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Configuration
 public class BatchConfig {
