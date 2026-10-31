@@ -1,5 +1,6 @@
 package io.slim.ingestion.batch.v2.app.config;
 
+/*
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -18,10 +19,6 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 
- * @see: https://www.jobrunr.io/en/documentation/getting-started/spring/
- */
 @Configuration
 @EnableConfigurationProperties(SchedulerConfig.JobScheduleProps.class)
 public class SchedulerConfig {
@@ -76,3 +73,4 @@ public class SchedulerConfig {
         }
     }
 }
+*/
