@@ -57,3 +57,7 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/gradle,visualstudiocode
+
+# Claude Code (commit shared config; ignore local-only files)
+.claude/settings.local.json
+.claude/worktrees/
