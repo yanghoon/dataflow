@@ -1,0 +1,108 @@
+version: 6.60.0
+
+type: DeclarativeSource
+
+check:
+  type: CheckStream
+  stream_names:
+    - active_users
+
+definitions:
+  csv_decoder:
+    type: CsvDecoder
+    delimiter: ","
+    encoding: utf-8
+
+  requester:
+    type: HttpRequester
+    url_base: "https://{{ config['host'] }}"
+    path: /stafftools/reports/active_users.csv
+    http_method: GET
+    authenticator:
+      type: BearerAuthenticator
+      api_token: "{{ config['api_token'] }}"
+    error_handler:
+      type: DefaultErrorHandler
+      max_retries: "{{ config['max_retries'] }}"
+      backoff_strategies:
+        - type: ConstantBackoffStrategy
+          backoff_time_in_seconds: "{{ config['retry_interval_seconds'] }}"
+      response_filters:
+        # 리포트 생성 중 응답. ADR-0003: 임시 가정(202), 검증 항목 V1.
+        - type: HttpResponseFilter
+          action: RETRY
+          http_codes:
+            - 202
+
+  retriever:
+    type: SimpleRetriever
+    requester:
+      $ref: "#/definitions/requester"
+    decoder:
+      $ref: "#/definitions/csv_decoder"
+    record_selector:
+      type: RecordSelector
+      extractor:
+        type: DpathExtractor
+        field_path: []
+        decoder:
+          $ref: "#/definitions/csv_decoder"
+
+  active_users_stream:
+    type: DeclarativeStream
+    name: active_users
+    retriever:
+      $ref: "#/definitions/retriever"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/active_users"
+
+streams:
+  - $ref: "#/definitions/active_users_stream"
+
+spec:
+  type: Spec
+  connection_specification:
+    $schema: http://json-schema.org/draft-07/schema#
+    type: object
+    required:
+      - host
+      - api_token
+    additionalProperties: true
+    properties:
+      host:
+        type: string
+        title: GHES Host
+        description: GHES 호스트명 (스킴 제외). 예) ghes.example.com
+        order: 0
+      api_token:
+        type: string
+        title: Personal Access Token
+        description: site_admin 스코프 PAT
+        airbyte_secret: true
+        order: 1
+      max_retries:
+        type: integer
+        title: 최대 재시도 횟수
+        description: 리포트 생성 중(202) 재시도 횟수. 대기 x 횟수가 최대 대기 시간.
+        default: 20
+        minimum: 1
+        order: 2
+      retry_interval_seconds:
+        type: integer
+        title: 재시도 간격(초)
+        default: 30
+        minimum: 1
+        order: 3
+
+metadata:
+  autoImportSchema:
+    active_users: false
+
+schemas:
+  active_users:
+    type: object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties: {}
