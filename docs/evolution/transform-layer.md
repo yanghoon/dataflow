@@ -31,16 +31,22 @@
 - **P5** 브론즈는 원본 페이로드를 변경하지 않고 전량 보존한다. 메타데이터는 원본 옆에 추가할 수 있다.
 - **P6** 기존 수단으로 요구를 충족할 수 없을 때에만 인프라를 추가한다.
 - **P7** 브론즈 Sink는 사람이 읽을 수 있는 형식(JSONL, CSV)을 우선한다. Parquet·Avro는 가능하나 우선순위를 낮춘다.
+- **P8** pull 수집은 단일 도구로 한다. 소스가 늘어도 도구를 늘리지 않는다. Vector push는 별도 경로다(F2).
+- **P9** 중복 투자를 피한다. 최소 구성에서 시작하되 최종 구성에서도 쓰는 자원(SQL, 이미지, 실행 명령)을 만든다.
+- **P10** 필요가 실제로 생긴 시점에 문서화되고 검증된 도구를 도입하고, 직접 구현하지 않는다. 나중에 버릴 임시 구현도 만들지 않는다. 기술 완성도가 유지보수성과 개발 리소스를 줄인다. 필요가 없으면 도입하지 않는다(P6). ← 사용자 결정(2026-11-04)
 
 ## 3. 가정
 
 - **A1** 메일 API는 요청 ID로 중복을 막는다. 깨지면 중복 발송을 허용한다. 검증: API 문서.
-- **A2** DuckDB 단일 컨테이너가 시간 윈도우 하나를 윈도우 길이 안에 처리한다. 검증: 피크 시간 실측.
+- **A2** DuckDB 컨테이너 하나(최소 2코어 4GB)가 피크 시간 윈도우(530만 건)를 15분 안에 처리한다. 필요 속도는 초당 약 5,900건이고, 공개 사례의 가장 느린 값(초당 약 4.6만 건, 사양 불명)보다 낮다. 기준값은 확정, 실측은 미검증. scale up 상한은 4코어 8GB, scale out은 허용한다. 검증: 피크 시간 실측.
 - **A3** 온프레미스 S3가 경로 단위 접근 정책을 지원한다. 검증: 스토리지 문서·테스트.
 - **A4** 이벤트 구동 요구(즉시 반응, 다중 소비자)는 현재 없다.
-- **A5** Airbyte CDC가 `before`·`op`를 보존한다. 검증: 실제 출력 확인. 평탄화되면 이력이 손실된다.
+- **A5** Airbyte CDC가 `before`·`op`를 보존한다. 검증: 실제 출력 확인. 펴서 합쳐지면 이력이 손실된다.
 - **A6** 브론즈를 읽는 트랜스폼 엔진(DuckDB 등)이 여러 포맷을 읽을 수 있다.
 - **A7** L2는 스킬업 후 GitOps(PR)로 Logic(SQL)을 수정한다. 그 전에는 L3가 수정한다. 검증: 스킬업 완료 시점의 L2 PR 실적.
+- **A8** PG 사용자 테이블은 약 5만 건이다(예상). 검증: 실제 행 수.
+- **A9** 내장 스케줄러 화면이 날짜 인자 재실행과 실행 이력 확인을 제공한다. 검증: 작은 잡으로 시험(Q9). 깨지면 T9.
+- **A10** 내장 스케줄러가 서버 재기동 시 놓친 실행을 보충하거나, 보충하지 않아도 업무 영향이 없다. 검증: 재기동 시험(Q9).
 
 ## 4. 검증된 외부 사실
 
@@ -49,9 +55,20 @@
 - **V3** Airbyte S3 목적지는 `_airbyte_raw_id`, `_airbyte_extracted_at`(epoch ms), `_airbyte_meta`(sync_id 등), `_airbyte_generation_id`를 자동으로 붙인다. [S3 Migration Guide](https://docs.airbyte.com/integrations/destinations/s3-migrations), [metadata fields](https://docs.airbyte.com/understanding-airbyte/airbyte-metadata-fields)
 - **V4** Airbyte "Copy raw files"는 파일을 파싱하지 않고 바이트를 그대로 S3로 복사하며 파일 메타를 함께 전달한다. 파일 기반 소스(S3, SFTP Bulk, SharePoint 등)에서만 가능하다. HTTP 소스 지원은 확인하지 못했다. 파일당 상한은 문서에 1GB와 1.5GB가 혼재한다. [Delivery methods](https://docs.airbyte.com/using-airbyte/delivery-methods)
 - **V5** 브론즈 일반 관행: 원본은 변경하지 않고 계보 필드를 옆에 추가한다. 출처는 벤더 블로그이며 표준이 아니다. [Conduktor](https://www.conduktor.io/glossary/data-lake-zones-bronze-silver-gold-architecture)
-- **V6** Debezium CDC 이벤트는 `before`, `after`, `op`, `source`, `ts_ms`를 가진 봉투다. 평탄화하면 `before`와 `op`를 잃는다. 브론즈 적용은 추론이다. [Red Hat Debezium guide](https://docs.redhat.com/en/documentation/red_hat_integration/2020-q2/html/getting_started_with_debezium/viewing-change-events)
+- **V6** Debezium CDC 이벤트는 `before`, `after`, `op`, `source`, `ts_ms`를 가진 봉투다. 펴서 합치면 `before`와 `op`를 잃는다. 브론즈 적용은 추론이다. [Red Hat Debezium guide](https://docs.redhat.com/en/documentation/red_hat_integration/2020-q2/html/getting_started_with_debezium/viewing-change-events)
 - **V7** DuckDB는 `read_ndjson`으로 읽고 `.gz`를 확장자로 자동 해제한다. `union_by_name`으로 스키마가 다른 파일을 합친다. `filename` 가상 컬럼은 v1.3.0부터다. [Loading JSON](https://duckdb.org/docs/stable/data/json/loading_json)
 - **V8** Trino Hive 커넥터는 JSON SerDe를 지원한다. 압축 코덱 설정은 쓰기용이다. gzip JSONL 읽기와 `json_parse` 방식은 확인하지 못했다. [Hive connector](https://trino.io/docs/current/connector/hive)
+- **V9** Dagster는 `dagster-airbyte`로 Airbyte OSS connection을 자산으로 불러와 sync를 실행한다. Airflow는 `AirbyteTriggerSyncOperator`로 connection ID의 sync를 호출하며, 재실행하면 sync가 다시 시작되어 여러 번 실행해도 결과가 같다는 보장이 없다. [Dagster & Airbyte OSS](https://docs.dagster.io/integrations/libraries/airbyte/airbyte-oss), [Airflow Airbyte operator](https://airflow.apache.org/docs/apache-airflow-providers-airbyte/stable/operators/airbyte.html)
+- **V10** Dagster OSS는 계속 켜 두는 서비스로 웹서버, 데몬, 코드 로케이션이 필요하고 예제 구성에 Postgres가 있다. 기본 OSS에 사용자 인증이 없다는 설명은 제3자 템플릿 문서다. Airflow 3는 메타DB, API 서버, 스케줄러, DAG 프로세서가 필요하고 triggerer는 선택이다. [Dagster 배포](https://docs.dagster.io/deployment/overview), [Airflow 구조](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/overview.html)
+- **V11** Dagster는 `dagster-dbt` + `dbt-duckdb`로 dbt 모델을 자산으로 읽는다(컴포넌트 방식은 프리뷰). Airflow의 Cosmos는 dbt 모델을 태스크로 바꾸며 dbt-duckdb가 선택 어댑터로 나열된다. Cosmos + DuckDB 공식 예제는 확인하지 못했다. [Dagster dbt](https://docs.dagster.io/integrations/dbt), [Astronomer dbt 가이드](https://www.astronomer.io/guides/airflow-dbt)
+- **V12** db-scheduler-ui(Bekk)는 db-scheduler 위의 화면으로 예정·실행·실패 작업 조회와 재실행을 제공하고, 이력은 별도 로그 모듈로 켠다. Java 17, Spring Boot 3.3 이상이 필요하다. 파라미터 입력 폼과 날짜별 재실행 지원 여부는 확인하지 못했다. [db-scheduler-ui](https://gh.r-mj.com/bekk/db-scheduler-ui), [db-scheduler](https://www.github.com/kagkarlsson/db-scheduler)
+- **V13** JobRunr 오픈소스는 자동 재시도(지수 백오프), 반복 작업, 내장 대시보드를 제공하고, 우선순위 큐·배치 체이닝은 Pro로 알려져 있다. 출처가 제3자 요약이라 공식 비교표 확인이 필요하다. [Quarkus Insights](https://quarkus.io/blog/quarkus-insights-264-jobrunr-failure-handling/), [JobRunr v7](https://www.jobrunr.io/en/blog/2024-04-09-jobrunr-and-jobrunr-pro-v7/)
+- **V14** Trino Iceberg 커넥터의 카탈로그 유형은 hive_metastore(기본), glue, jdbc, rest, nessie다. REST 카탈로그는 뷰와 구체화 뷰를 지원하지 않는다. JDBC는 PostgreSQL 외에는 드라이버 jar가 필요하고, Iceberg 변경 시 호환성 문제가 있다는 경고가 있다. 출처는 문서 미러다. [Iceberg connector 미러](https://dell.starburst.io/443-e/connector/iceberg.html)
+- **V15** DuckDB Iceberg 확장은 REST 카탈로그를 attach하면 INSERT, UPDATE, DELETE, MERGE INTO를 지원한다. 카탈로그 없이 `iceberg_scan`으로 읽은 테이블에는 쓸 수 없다. 수정·삭제는 merge-on-read(위치 삭제)이고 copy-on-write는 아직 없다. 버전별 문서가 다르다. [DuckDB Iceberg 쓰기](https://duckdb.org/docs/1.5/core_extensions/iceberg/writing_to_iceberg)
+- **V16** Trino Iceberg 정비 명령: `OPTIMIZE`(작은 파일 병합), `expire_snapshots`, `remove_orphan_files`. 최소 보존 기본값은 7일이다. snapshot 정리를 먼저, 고아 파일 정리를 나중에 하라는 권고는 제3자 자료다. [정비 가이드](https://www.starburst.io/blog/how-table-maintenance-affects-iceberg-snapshots/), [Trino Iceberg](https://trino.io/docs/current/connector/iceberg)
+- **V17** Trino OPA 플러그인은 접근 검사, 행 필터(SQL 조건), 열 마스킹을 별도 HTTP 호출로 처리한다. Trino 자체 파일 규칙의 행 필터 지원은 공식 문서로 확인하지 못했다. [Cerbos OPA 행 필터](https://www.cerbos.dev/blog/row-level-security-for-apache-trino)
+- **V18** dbt-trino는 MERGE 기반 증분 모델을 만들고 Iceberg는 MERGE를 지원한다. snapshot 지원은 자료가 엇갈린다(구버전 PyPI는 미구현, Starburst 블로그는 지원). [dbt-trino PyPI](https://pypi.org/project/dbt-trino/1.2.1/), [Starburst](https://www.starburst.io/blog/lakehouse-data-pipeline-dbt-trino/etl)
+- **V19** Vercel 권한 구조(참고 모델): 팀 층 역할(Owner, Member, Developer, Billing, Viewer, Contributor)과 프로젝트 층 역할(Admin, Developer, Viewer)의 두 층이다. Contributor는 명시적으로 배정된 프로젝트에만 접근한다(기본 거부). 프로젝트 역할은 Contributor에게만 유효하다. 여러 Access Group이나 직접 배정이 겹치면 가장 높은 권한이 적용된다. 프로젝트 역할과 Access Group은 Enterprise 전용이다. [Access roles](https://vercel.com/docs/rbac/access-roles), [Access groups](https://vercel.com/docs/rbac/access-groups)
 
 ## 5. 요구사항
 
@@ -63,10 +80,25 @@
 - **R6** L2가 웹 GUI로 구성·모니터링·재실행. ← F5, P3
 - **R7** 유지보수·진화 유연성. 독립 변환은 잡 추가로 수용. ← 부록 B
 - **R8** 향후 후보(미확정): 일별 사용자 수 집계, 저장소별 스토리지 사용량, 이벤트 트리거 분석. ← 부록 B, A4
+- **R9** 사용자 추이, 휴면 기준일 다중 비교, 예상 사용자 분석을 위해 일·시간 단위 스냅샷 이력을 실버에 남긴다. ← 부록 B
+- **R10** PG 사용자 테이블을 수집한다. 적재 방식(full, CDC)은 C26. ← 부록 B
+- **R11** 플랫폼 사용자(최종 사용자)에게 분석 기능을 제공한다. 어드민이 지표·집계를 정의하고(Databricks형, 임의 SQL), 최종 사용자는 정의된 대시보드·지표를 본다(Firebase형). 최종 사용자는 권한이 있는 데이터만 본다. 범위는 팀 → 프로젝트 2단계이고 기본은 거부다. ← 사용자 결정(2026-11-04), V19
 
-## 6. 평가 축 (선택지마다 채운다)
+## 6. 검토 기준과 평가 축
+
+**검토 기준** (모든 결론은 아래 기준으로 판단한다. 근거 원칙을 함께 적는다.)
+
+- **K1 필요할 때만 추가한다.** 처음엔 가장 작은 구성으로 시작한다. ← P6
+- **K2 각 단계의 선택은 최종 구성에서 다시 쓰여야 한다.** 버릴 임시 구현은 만들지 않는다. ← P9, P10
+- **K3 검증된 도구를 쓰고 직접 만들지 않는다.** ← P10
+- **K4 확인된 근거가 있는 것만 확정한다.** 근거 없는 것은 미결(Q)로 둔다. ← 부록 A
+- **K5 최종 구성은 인프라를 더 늘리지 않고 모든 요구를 받아야 한다.** 단계마다 "무엇을 언제 바꾸는가"를 전환 규칙(T)으로 적는다. ← 부록 B
+
+**평가 축** (선택지마다 채운다)
 
 수행 주체(L2/L3) · GUI 관리 범위 · 최종 아키텍처 재사용 여부 · 운영 부담 · 재사용 불가 시 투입 한도 · 전환 조건
+
+사용자 지정 기준: 유지보수성 · 개발 리소스·속도 · 중복 투자 회피(최종 구성으로 최소 투입). ← P9, 부록 B
 
 ## 7. 결론
 
@@ -77,10 +109,10 @@
 - **C4** 휴면 단계는 잡 경계를 넘는 의존이지만 PG 상태 컬럼으로도 풀 수 있다. 스케줄러가 필요한 근거는 C2(L2 GUI)다. Airbyte 스케줄러는 sync 전용이고 Vector 경로는 Airbyte 밖이다(F2). ← F7, C2, C3 (철회: 최초 "오케스트레이터 필수" 판단, §10 참조)
 - **C5** 부작용(메일)은 상태를 기록하고 최소 한 번 실행한다. ← A1, C3
 - **C6** 메시지 큐는 도입하지 않는다. ← A4, P6
-- **C14** Logic은 dbt 모델(SQL)로 Git에 둔다. 엔진 교체 시 어댑터만 바꿔 재사용한다. L2 수정은 PR로 한다. 도입 시점은 T7. ← C1, A6, A7, T3
-- **C15** 진화 경로: 단계 0 스케줄러 + SQL 실행 컨테이너 → 1 PG 상태·메일(T6) → 2 dbt(T7) → 3 Iceberg·분산 엔진(T1, T3). SQL, 이미지, DAG 정의는 전 단계에서 재사용한다. ← C2, C4, P6, C14
-- **C16** 단계 0의 SQL 실행은 DuckDB CLI(`duckdb -f`)와 SQL 파일로 충분하다. Python은 R3·R4(HTTP 호출, 상태 갱신)부터 필요하다. 오케스트레이터 DAG 정의가 Python인 것은 별개다. DuckDB는 서버 없는 CLI·라이브러리 겸용이다. S3 접근 조합은 미검증. ← R1, R2, R3, R4, A6
-- **C17** 메일 발송 패턴(안): ① 기준일 고정 SQL로 후보를 PG에 적재, 이미 발송·활동 재개·제외 목록은 조인으로 제외 ② 건수가 임계치를 넘으면 중단하고 승인 ③ 발송 직전 재검증 ④ `pending → sending` 선점(`FOR UPDATE SKIP LOCKED`) ⑤ 요청 ID = (사용자, 안내종류, 회차) ⑥ 결과를 `sent`/`failed`로 기록, 실패분만 재시도. A1이 깨지면 중복 발송을 허용한다. ← A1, C3, C5, R3, R4
+- **C14** Logic은 dbt 모델(SQL)로 Git에 둔다. 엔진 교체 시 변환 SQL은 어댑터만 바꿔 재사용한다. 브론즈를 읽는 문법은 엔진마다 바뀔 수 있다(C33, 확인 전). L2 수정은 PR로 한다. 도입 시점은 T7. ← C1, A6, A7, T3
+- **C15** 진화 경로: 단계 0 스케줄러 + SQL 실행 컨테이너 → 1 PG 상태·메일(T6) → 2 dbt(T7) → 3 Iceberg·분산 엔진(T1, T3). 변환 SQL, 이미지, DAG 정의는 전 단계에서 재사용한다. 브론즈 읽기 문법은 예외일 수 있다(C33, 확인 전). Phase 2 최소 구성(C21)은 단계 0·1에, Phase 3(C29)는 단계 2·3에 대응한다. ← C2, C4, P6, C14
+- **C16** 단계 0의 SQL 실행은 DuckDB CLI(`duckdb -f`)와 SQL 파일로 충분하다. 코드는 R3·R4(HTTP 호출, 상태 갱신)부터 필요하다. 언어는 C23. 오케스트레이터 DAG 정의가 Python인 것은 별개다. DuckDB는 서버 없는 CLI·라이브러리 겸용이다. S3 접근 조합은 미검증. ← R1, R2, R3, R4, A6
+- **C17** 메일 발송 패턴(안): ① 기준일 고정 SQL로 후보를 PG에 적재, 이미 발송·활동 재개·제외 목록은 조인으로 제외 ② 건수가 기준 건수를 넘으면 중단하고 승인 ③ 발송 직전 재검증 ④ `pending → sending` 먼저 잡기(`FOR UPDATE SKIP LOCKED`) ⑤ 요청 ID = (사용자, 안내종류, 회차) ⑥ 결과를 `sent`/`failed`로 기록, 실패분만 재시도. A1이 깨지면 중복 발송을 허용한다. ← A1, C3, C5, R3, R4
 - **C18** dbt는 스케줄 기능이 없는 CLI다. 스케줄러가 dbt 컨테이너를 실행하고, dbt는 어댑터로 엔진에 SQL을 보낸다. 이미지는 dbt·DuckDB·모델을 담아 Git 태그로 버전 관리한다. 실행 이력·재시도·재실행은 스케줄러 UI, 모델·테스트 결과는 `run_results.json`이 제공한다. ← C14, R6
 
 **수집 Sink와 포맷**
@@ -95,31 +127,69 @@
 | CDC | 이벤트 전체(`before`, `after`, `op`, `source`) | 이벤트 내부 |
 | 레코드 API(Gerrit) | 레코드 | 도구가 붙인 `_airbyte_*` |
 
-- **C10** GHES CSV는 Airbyte 기능 제한으로 레코드(JSONL)로 받고 `_airbyte_*` 메타를 붙인다. 파싱 근사이므로 모든 컬럼을 string으로 받는다. 이는 원칙(C9)의 예외이며 수용된 한계다. ← F9, V4, 사용자 결정
-- **C11** CDC는 평탄화하지 않고 이벤트 전체를 저장한다. ← V6, A5
+- **C10** GHES CSV는 Airbyte 기능 제한으로 레코드(JSONL)로 받고 `_airbyte_*` 메타를 붙인다. 파싱 결과가 원본과 완전히 같지 않으므로 모든 컬럼을 string으로 받는다. 이는 원칙(C9)의 예외이며 수용된 한계다. ← F9, V4, 사용자 결정
+- **C11** CDC는 펴지 않고 이벤트 전체를 저장한다. ← V6, A5
 - **C12** 레코드 단위 메타는 도구 제공 필드를 쓰고, 도구가 못 넣는 경우만 직접 추가한다. 공통 계약 후보: 소스ID, 적재시각, 실행ID. ← V1, V2, V3
 - **C13** Parquet·Avro는 실버 이후로 미룬다. ← P7
 
+**Phase별 구성** (잠정. 사용자 확정 전. Phase 1·2는 최소 구성, Phase 3는 최종 후보. 시험·검토 항목은 Q9~Q21)
+- **C19** Phase 1은 Airbyte 단독, Phase 2는 Phase 1에 변환·발송을 더한 것이다. 둘 다 최소 구성이다. Phase 3는 Phase 2에 오케스트레이터, Iceberg, Trino를 더한 최종 후보다(C29). Phase 2는 Phase 1 위에 쌓는 것을 전제하지 않고 최종 구성 기준으로 직접 설계하며, Phase 1 산출물은 재사용되는 것만 쓴다. ← P9, 부록 B
+- **C20** Phase 1 최소 구성: Airbyte(자체 스케줄 + GUI) 하나가 PG, Gerrit(CDK), GHES(Builder)를 S3 브론즈로 수집한다. 변환·발송은 없다. Vector push는 Airbyte 밖의 기존 경로다. 신규 계속 켜 두는 구성 요소는 Airbyte 1개다. ← F2, F5, P3, P8, C7
+- **C21** Phase 2 최소 구성: C20에 상시 배치 앱 1개(단일 인스턴스)를 더한다. 앱이 ① 스케줄·화면(JobRunr 또는 db-scheduler-ui, Q9 시험 후 확정) ② DuckDB SQL 실행(R1, R2) ③ 메일 발송(R3, R4)을 맡는다. PG는 발송 상태와 잡 저장에 쓴다. 스케줄러는 변환·발송 전용이고 수집 스케줄은 Airbyte가 유지한다. 신규 계속 켜 두는 구성 요소는 배치 앱 1개다. 화면이 A9를 충족하지 못하면 T9. ← C2, C15, C16, V12, V13, A9, A10, P6, P9
+- **C22** 로직은 실행 명령 + SQL 파일로 두고 스케줄러와 분리한다. 날짜·기준일은 인자, 상태는 PG, 스케줄 코드는 로직 밖이다. 스케줄러를 바꿔도 로직은 그대로다. ← P9, C15
+- **C23** 변환과 발송은 분리한다. 후보 선정은 SQL(변환), 발송·상태 기록·재시도는 코드(소비 쪽)이고 경계는 PG 표다. 발송 코드는 하나로 두고 언어는 L3가 정한다. 스케줄러는 명령을 실행만 하므로 언어와 무관하다. Java와 Python은 동등하게 관리한다. ← C17, C5, F5, 부록 B
+- **C24** 변환 단계(SQL 실행)에는 Spring Batch가 필요 없다. DuckDB CLI와 SQL 파일로 충분하다(C16). 활성화 워커는 C36에서 Spring Batch를 쓴다. ← A8, C16, C17, P6
+- **C25** Airbyte는 Phase 2에서도 pull 수집의 단일 도구다. 스케줄러가 있어도 Airbyte는 커넥터와 소스 설정 GUI를 제공한다. 재검토 조건은 T8. PG 소스의 full·CDC 지원은 미검증(Q14). ← P8, P3, F5
+- **C26** 사용자 테이블은 full 적재를 누적해 일·시간 스냅샷으로 쓴다. 5만 건이면 full 비용이 작고 삭제는 다음 스냅샷의 부재로 드러난다. `snapshot_date`는 `_airbyte_extracted_at`(V3)에서 얻을 수 있다. 적재 시작 전 과거는 복구할 수 없다. 휴면 판정에는 사용자 테이블 외에 활동 정보(로그)가 필요하다. CDC 전환은 T5. ← R9, R10, A8, V3, T5
+- **C27** 스케줄러의 수동 실행은 날짜·기준일 인자만 받는다. 부서 목록·정규식은 PG 표에 둔다. 기준일을 바꿔 보는 분석은 스케줄러 밖에서 실버를 SQL로 직접 조회한다. 발송은 조건을 바꿔도 건수 기준 승인(C17)을 거친다. ← R9, C17, A7
+- **C28** 스케줄러는 수집→변환 순서를 보장하지 않는다. 변환은 시각 간격을 두고, 입력(당일 스냅샷)이 없으면 실패한다(fail-closed). ← C21, C25, C26
+- **C29** Phase 3(최종 후보) = Phase 2 + 오케스트레이터(Dagster 또는 Airflow) + Iceberg 실버 이상 + Trino. 새로 늘어나는 인프라는 오케스트레이터, Trino, 카탈로그이고, 행 필터에 OPA를 쓰면 정책 서버가 더해진다. Iceberg는 저장 형식이지 인프라가 아니다. 세 가지는 한꺼번에 오지 않고 조건이 관측된 순서로 들어온다(T9 오케스트레이터, T1·T2 Iceberg와 행 필터, T3 Trino 실행). 중간 상태는 별도 Phase가 아니라 Phase 3로 가는 경로다. ← C15, T1, T2, T3, T9, V10, V14, V17
+- **C30** Phase 3는 A4가 유지되는 한 추가 인프라 없이 R1~R10을 수용한다. 이벤트 트리거(R8)는 메시지 큐(T4), BI 대시보드는 별도 도구가 필요하므로 Phase 3 범위 밖이다. 필요해지면 Phase 4로 검토한다. 분석 방식은 SQL 직접 조회로 가정한다(Q20). ← R1~R10, A4, C6, T4
+- **C31** 엔진과 카탈로그 제약이 꼬리를 문다. DuckDB가 Iceberg에 쓰려면 REST 카탈로그가 필요하고(V15), Trino의 REST 카탈로그는 뷰를 지원하지 않으며(V14), JDBC 카탈로그는 PG로 가능하나 DuckDB 호환은 미확인이다. Trino가 브론즈 `jsonl.gz`를 읽는 경로(Hive 커넥터)도 미확인이라(V8) Phase 3에서도 DuckDB(브론즈 파싱) + Trino(서빙·격리) 두 엔진이 공존할 수 있다. ← V8, V14, V15, Q15, Q16
+- **C32** Iceberg 테이블은 정비 잡이 필요하다: `OPTIMIZE`(작은 파일 병합), `expire_snapshots`, `remove_orphan_files`. snapshot 정리를 먼저 하고 고아 파일 정리를 나중에 한다. 보존 기간 기본값은 7일이다. 이 잡은 스케줄러(T9 이후 오케스트레이터)가 실행한다. ← V16, C21
+- **C33** C14·C15의 "SQL은 전 단계에서 재사용"은 읽기 구문(DuckDB `read_ndjson`, `filename`)과 함수 방언에서 깨질 수 있다. 변환 로직의 SQL은 재사용하되 브론즈를 읽는 구문은 엔진별로 바뀐다고 보고 범위를 Q19로 확인한다. 미검증. ← C14, C15, V7, V8
+
+- **C34** R11의 최종 사용자 서빙은 미리 계산한 집계 테이블(골드)과 조회 API로 시작한다. 임의 SQL 엔진(Trino)은 이 단계에 필요 없다. API는 (팀, 프로젝트) 권한으로 조회를 제한하고 기본은 거부다. 최종 사용자의 직접 분석 수요가 생기면 권한 범위로 제한해 임의 조회를 개방하며, 이때 T1·T2가 작동한다. 가정(미검증): 최종 사용자는 정해진 지표만 본다. ← R11, V19, T1, T2, 사용자 결정(2026-11-04)
+- **C35** 메일 알림(R3, R4)은 별도 CRM·메일 플랫폼을 만들지 않고 플랫폼 내부의 활성화(리버스 ETL) 계층으로 처리한다. 패턴(P1)은 Source = 실버·골드, Tool = 활성화 워커, Logic = 후보 선정 SQL, Sink = 외부 REST API다. 후보는 SQL이 PG outbox 표에 적재하고, 워커가 행 단위로 먼저 잡아 호출한다. outbox(변경 가능한 진행 상태)는 모든 Phase에서 PG에 둔다. Iceberg는 행 잠금이 없어 같은 행을 둘이 잡는 일을 막지 못한다(미확인). 발송 결과 이력은 S3에 추가만 한다(P5). 목적지가 메일 알림 하나이므로 목적지 어댑터 추상화는 두 번째 목적지가 생길 때로 미룬다. 후보 적재 방법(DuckDB postgres 확장, Trino PG 커넥터)은 미검증이다. ← R3, R4, C3, C5, C17, P1, P5, P6, P9, V15, 사용자 결정(2026-11-04)
+- **C36** Phase 2의 활성화 워커는 Spring Batch로 구현한다. 부분 재시도, 건너뛰기, 실패 지점부터 재시작은 검증된 도구가 제공하므로 직접 만들지 않는다(P10). L3의 Spring Batch 경험 부족은 학습 비용이며 직접 구현의 근거가 아니다. 구성: reader = outbox의 `pending` 행, processor/writer = 외부 호출과 `sent`/`failed` 상태 갱신. 행 단위 상태와 요청 ID 중복 방지는 outbox 표가 맡는다(Spring Batch는 외부 호출 후 저장 전 사망 시의 중복 발송을 막지 않는다). 재처리는 작업 재실행(`failed`/`pending`만 처리), `sending`에 멈춘 행 복구, 같은 기준일 재산출 시 요청 ID 충돌 무시, 발송 직전 재검증 실패 시 `cancelled`다. 재시도·속도 제한 부품은 Spring Batch 설정과 Resilience4j 등(사내 사용 가능 여부 미확인). db-scheduler는 트리거일 뿐 논리 재시도를 맡지 않는다. 같은 실행 파라미터의 재실행 가능 여부는 Q9에서 시험한다(미검증). 이전 결정(일반 Spring Boot)은 철회한다. ← C35, C17, F5, P10, 사용자 결정(2026-11-04)
+- **C37** Trino 도입(서버형 SQL 서비스, T1a)과 Iceberg 도입(표 형식, T1b)은 별개 결정이다. 개인 도구 분석은 DuckDB + DBeaver 등으로 하며 S3 접근 키가 필요하므로 신뢰하는 L2에 한정한다. 레이크하우스가 최종 방향이다(P4, 사용자 확인 2026-11-04). 실버에 동시 쓰기는 없다. Iceberg는 실버 이상의 표준이고, 도입 시점은 읽는 쪽이 생기는 R11 서빙 시작이다. 그 전은 일반 파일이다(P10, P6). Hive 메타스토어는 별도 서비스가 필요하고 JDBC 카탈로그는 PG를 쓸 수 있다(V14). 카탈로그 선택과 DuckDB·Trino 호환, Trino의 gzip JSONL 읽기는 미검증이다(Q15, Q16, C31). ← T1a, T1b, P4, P6, P10, C26, V8, V14, V15, V18
+
 ## 8. 전환 규칙
 
-- **T1** SQL 소비자가 생기거나 행 단위 격리가 필요해지면 → 실버를 Iceberg로 전환한다. ← P4, P6
-- **T2** 복사 격리 비용이 정책 격리 비용보다 커지면 → 부서별 복사를 폐기하고 정책 격리로 전환한다. ← A3, T1
-- **T3** A2가 깨지면 → 실행 엔진을 분산 엔진으로 교체한다. Logic은 유지한다. ← A2
+- **T1a** 관리자 또는 최종 사용자에게 SQL 분석을 웹 서비스로 제공해야 하면(여러 사용자 동시 사용, 권한 적용, 쿼리·표 공유 중 하나 이상) → 서버형 엔진(Trino)과 카탈로그를 도입한다. 개인 도구(DuckDB + DBeaver 등)로 쓰는 직접 조회는 해당하지 않는다. ← C34, C37, R11
+- **T1b** R11 서빙을 시작해 읽는 쪽이 있는 상태에서 표를 교체해야 하거나, 실버의 행 단위 수정·삭제, dbt 증분 MERGE가 필요해지면 → 실버 이상을 Iceberg로 전환한다. Iceberg 없이 T1a를 먼저 도입할 수 있다. ← P4, P6, P10, C37, V15, V18
+- **T2** 복사 격리 비용이 정책 격리 비용보다 커지면 → 부서별 복사를 폐기하고 정책 격리로 전환한다. R11의 (팀, 프로젝트) 단위 격리는 개수가 많아 복사 격리가 성립하지 않을 가능성이 높으므로, 최종 사용자 서빙은 처음부터 조회 시점 필터로 설계한다. 숫자 기준(N, M)은 미정. ← A3, T1, R11
+- **T3** 1시간 윈도우 처리가 15분을 넘으면 → 먼저 4코어 8GB로 scale up, 그래도 넘으면 시간대·부서 단위로 scale out. 둘로도 풀리지 않을 때(분할할 수 없는 조인·집계 등)만 분산 엔진으로 교체한다. Logic은 유지한다. scale out 대수 상한은 미정. ← A2
 - **T4** A4가 깨지면 → 메시지 큐를 도입한다. ← A4
 - **T6** 휴면 안내·처리(R3, R4)를 시작하면 → PG 상태 테이블과 메일 태스크를 추가한다. ← C3, C5
 - **T7** 모델이 늘거나 L2가 PR로 SQL을 수정하기 시작하면 → dbt를 도입한다. SQL 파일은 모델로 이관한다. ← C14, A7
 - **T5** 소스 PG 테이블이 작고 변경 추적이 필요하면 → Airbyte CDC로 S3에 변경 이벤트를 적재한다. Sink는 S3다. ← C7, A5
+- **T8** 오픈소스 커넥터를 쓰는 소스가 PG, Gerrit, GHES 외에 생기지 않고 Airbyte 월 운영 작업이 Q13의 한도를 넘으면 → 수집을 스케줄러 안의 코드로 흡수하는 안을 재검토한다. ← P8, C25, Q13
+- **T9** 내장 도구(db-scheduler-ui, JobRunr OSS)가 제공하지 않는 세 기능 중 하나가 필요해지면(① 날짜 구간 재실행, ② 잡 간 순서 의존, ③ 놓친 실행 보충이 업무에 영향을 줌), 또는 dbt를 도입(T7)하거나, 내장 화면이 A9를 충족하지 못하면 → 배치 앱의 스케줄러를 Dagster 또는 Airflow로 교체한다. 로직은 유지한다. ← C21, C22, A9, T7, V9, V10, V11
+- **T11** 즉시 반응이 필요하거나 소비자가 여러 곳이 되어 A4가 깨지거나, 워커를 늘려도 outbox 적체가 발송 주기를 넘고 원인이 외부 API 한도가 아니라 PG 처리량이면 → outbox 표를 유지한 채 CDC(Debezium)로 Kafka를 도입한다. 대량 건 자체는 조건이 아니다. ← T4, C35, V6
 
 ## 9. 미결
 
-- **Q1** 스케줄러 선택. Argo Workflows는 k8s 전용이라 VM에서 불가. Dagster(파티션·백필·dbt 연동, VM·k8s 모두)를 잠정 제안. Airflow는 대안(dbt 연동 방식 미검증). 두 도구의 구성 요소 수는 미검증.
 - **Q6** 조직에 GUI(이력·재실행)를 가진 자바 스케줄러가 이미 있는가. 있으면 그것이 단계 0 최소안이다. 없을 때 Quartz는 GUI가 없고 JobRunr 대시보드는 미검증이며, 이력·로그·재시도를 직접 만들면 유지보수가 커진다(P6). SQL 이미지는 스케줄러 교체와 무관하게 재사용된다.
-- **Q7** ADR 0004는 CronJob + DuckDB(Python) + Argo 1순위 전제라 이 문서의 C14~C16, Q1과 어긋난다. 확정 시 ADR을 수정하거나 새 ADR로 대체한다.
 - **Q8** 단계 0의 S3 접근(DuckDB CLI + 온프레미스 S3 호환, `url_style=path`)과 gz JSONL 읽기, dbt-duckdb의 S3 JSONL 읽기·쓰기 검증.
-- **Q2** (잠정 해소: C14, A7) dbt 채택. 남은 점: L2 수정 범위가 SQL 전체인지 파라미터(목록, 정규식)까지인지.
+- **Q2** L2가 고칠 수 있는 범위: SQL 전체인지, 값(부서 목록, 정규식)만인지. dbt 채택은 결정됨(C14, A7).
 - **Q3** A2, A3, A5 검증.
 - **Q4** 공통 메타 계약(소스ID, 적재시각, 실행ID)을 Vector 경로에서 어떻게 붙일지. 원본 바이트 보존(C9)과 충돌하므로 경로·객체 메타로 갈지 결정.
 - **Q5** HTTP 소스에서 raw 파일 복사가 가능한지(V4 미확인). 가능하면 C10 예외 해소.
+- **Q9** 내장 스케줄러 시험(JobRunr, db-scheduler-ui): 날짜 인자 재실행과 이력 화면(A9), 서버 재기동 시 놓친 실행 보충(A10), JobRunr 오픈소스 기능 범위(V13은 제3자 요약). 작은 잡 하나로 두 후보를 같은 기준으로 확인한다. Spring Batch의 같은 파라미터 재실행 가능 여부(C36)도 같은 시험에 포함한다.
+- **Q10** 메일 API의 호출 한도와 1회 발송 건수 제한. A1(중복 방지)과 함께 API 문서로 확인한다.
+- **Q11** Airbyte S3 목적지가 full 동기화를 덮어쓰지 않고 누적하는지, 시간별 스냅샷 경로 설계. 실제 설정으로 확인한다.
+- **Q12** PG 사용자 데이터의 삭제·중간 변경 이력이 필요한가. 필요하면 CDC(T5, A5).
+- **Q13** Airbyte 존치 지표: 월별 운영 작업 기록(업그레이드, 장애, 설정 변경)을 지표로 정하고 T8의 한도를 정한다.
+- **Q14** Airbyte PG 소스의 full·CDC 지원 확인. S3 접근키처럼 Airbyte와 변환 양쪽에 필요한 시크릿의 중복 관리 방식.
+- **Q15** (Phase 3) Trino가 브론즈 `jsonl.gz`를 메타스토어 없이 읽을 수 있는지(Hive 커넥터 JSON SerDe, V8). 불가하면 브론즈→실버는 DuckDB가 맡는다(C31).
+- **Q16** (Phase 3) 카탈로그 선택(REST, JDBC on PG, hive_metastore): DuckDB·Trino 양쪽 호환, 뷰 필요 여부, 추가 계속 켜 두는 서비스 여부.
+- **Q17** (Phase 3) 행 필터를 OPA 없이 Trino 자체 파일 규칙으로 할 수 있는지(정책 서버 회피). 부서 격리를 복사본으로 할지 정책으로 할지(A3, T2).
+- **Q18** (Phase 3) Iceberg 정비 잡의 주기와 보존 기간. 스냅샷 이력 분석 요구(R9)와 충돌하는지.
+- **Q19** (Phase 3) SQL 방언 차이로 재사용이 깨지는 범위(C33). 읽기 구문, JSON 함수, 날짜 함수.
+- **Q20** (Phase 3) 최종 구성의 분석 방식을 SQL 직접 조회로 보고 BI 대시보드를 범위 밖으로 둘지(C30).
+- **Q21** (Phase 3) Trino 최소 노드 구성(coordinator·worker 겸용 가능 여부)과 온프레미스 운영 부담. 도입 전에 A2와 함께 실측한다.
+- **Q22** ADR 확정 전 포석 검증 현황(부록 A의 ADR 검토 기준). 검증됨: 변환은 Airbyte 밖(C1, F4), 오케스트레이터 교체 시 로직 유지(C22, T9, 구조적 근거). 미검증이며 ADR 확정을 막는 항목: ① DuckDB 2코어 4GB의 피크 처리(A2, 실측), ② Iceberg 카탈로그와 DuckDB·Trino 호환(C31, Q15, Q16), ③ 내장 스케줄러의 날짜 재실행·재기동 보충(A9, A10, Q9), ④ Spring Batch의 같은 파라미터 재실행(C36, Q9), ⑤ S3 경로 단위 접근 정책(A3, 스토리지 문서·시험), ⑥ 메일 API의 중복 방지와 호출 한도(A1, Q10). 이 항목이 검증되기 전에는 해당 포석을 ADR로 확정하지 않는다.
 
 ## 10. 의사결정 코멘트 (Sink: S3와 포맷)
 
@@ -132,7 +202,16 @@
 - **오케스트레이터 필수 판단 철회**: 처음에 "휴면 단계가 잡 경계를 넘으므로 오케스트레이터 필수"라 했으나, 단계는 PG 상태로 풀 수 있어 근거가 약했다. 필수 근거는 L2의 GUI 요구(C2)다(C4).
 - **dbt 채택 이유와 한계**: 선택 이유는 SQL 재사용(엔진 교체), PR 리뷰의 안전망(테스트·리니지)이다(C14). 4개 유즈케이스만 보면 과한 면이 있어 도입은 T7 시점으로 미룬다. 대안은 SQL 파일 + 러너(가장 단순, 테스트·리니지 직접 구현)와 SQLMesh(세부 미검증)다. 빠지는 기능은 `ref()` 의존 해석, 적재 방식 템플릿, 테스트, 리니지·문서, 어댑터 교체다.
 - **Python 필수 아님**: SQL 실행은 DuckDB CLI로 충분하다(C16). 최초 제안의 "Python + DuckDB"는 R3·R4 이전에는 과했다.
-- **환경**: 온프레미스, VM 또는 k8s, k8s 필수 아님, 운영 컴포넌트 최소화, 개발·커스터마이징 자원은 최종까지 재사용이 설계 조건이다. 단계 0의 신규 상주 컴포넌트는 스케줄러 1개다. dbt와 DuckDB는 실행 후 종료된다.
+- **환경**: 온프레미스, VM 또는 k8s, k8s 필수 아님, 운영 컴포넌트 최소화, 개발·커스터마이징 자원은 최종까지 재사용이 설계 조건이다. 단계 0의 신규 계속 켜 두는 구성 요소는 스케줄러 1개다. dbt와 DuckDB는 실행 후 종료된다.
+- **Phase 구분과 제로 베이스 점검**: Phase 2를 Phase 1 위에 쌓지 않고 처음부터 설계해도 Airbyte가 남는지 점검했다. 스케줄러가 있으면 Airbyte의 스케줄 기능은 겹치고, 남는 가치는 오픈소스 커넥터와 소스 설정 GUI다. 소스가 Gerrit(직접 만든 CDK), GHES(Builder), PG뿐이면 이 가치는 작고 Airbyte 운영은 가장 무겁다. 그래도 "수집 단일 도구"(P8)와 PG CDC 가능성 때문에 유지하고, 재검토 조건을 T8로 남겼다(C25).
+- **스케줄러 범위 축소**: 처음에는 스케줄러가 Airbyte sync까지 호출하는 통합 GUI를 제안했다(V9로 가능함을 확인). 사용자가 스케줄러를 변환·발송 전용으로 좁혔고, 대가로 수집→변환 순서 보장이 없어졌다. 시각 간격과 입력 없음 실패로 대신한다(C28).
+- **직접 SPA 기각**: 이력, 재실행, 입력 폼, 로그인을 모두 만들고 유지해야 한다(P6). 내장 화면(V12, V13)이나 오픈소스 스케줄러를 쓴다.
+- **입력 폼 중요도 판단 철회**: 처음에 "낮음"이라 했으나 휴면 기준일을 바꿔 보는 분석 용도를 놓친 판단이었다. 운영 재실행(인자)과 분석 탐색(실버 직접 SQL 조회)으로 나누어 해결한다(C27).
+- **Spring Batch 필수 아님 (철회)**: 처음에는 발송 대상 상한이 5만 건이고 재시작·중복 방지는 PG 상태로 해결된다고 보았다(C24). 이후 기준을 "필요한 시점에 검증된 도구를 쓰고 직접 만들지 않는다"(P10)로 고정하면서 활성화 워커에는 Spring Batch를 채택했다(C36). 변환 단계(SQL 실행)에는 여전히 쓰지 않는다(C24).
+- **스케줄러 후보 비교 결과**: Dagster·Airflow는 연동이 풍부하나 계속 켜 두는 서비스가 3~4개와 DB다(V10). db-scheduler-ui·JobRunr는 서비스가 늘지 않으나 Airbyte·dbt 연동, 날짜별 재실행, 잡 체이닝은 직접 만들거나 유료다(V12, V13). 그래서 최소 구성은 내장 화면, 확장 구성은 Dagster 또는 Airflow로 둔다(C21, T9). Argo Workflows는 쿠버네티스에서만 돌아가 VM에서 쓸 수 없으므로 제외했다.
+- **설정 이원화**: S3 접근키는 Airbyte 목적지와 변환 양쪽에 필요하다. 소스 접속정보(PAT, Gerrit 계정)는 Airbyte에만 둔다(Q14).
+- **Phase 3 정의와 평가 기준**: 최종 구성을 "더 이상의 인프라 추가 없이 적재·분석 요구를 모두 수용하는가"로 평가했다. 오케스트레이터, Iceberg, Trino를 더한 구성이 이를 충족하므로 Phase 3로 부른다(C29, C30). 처음에는 "인프라 2개"로 보았으나 Iceberg는 저장 형식이고, 실제로 늘어나는 것은 Trino, 카탈로그, (정책 서버), 오케스트레이터다. 세 가지는 조건 순서대로 들어오므로 Phase를 더 늘리지 않고 전환 규칙으로 순서를 정한다. 이벤트 트리거와 BI는 Phase 4 후보이며 현재 범위 밖이다.
+- **Phase 3 검토 사항(재검토 후보)**: C14·C15의 "SQL 전 단계 재사용" 가정이 읽기 구문에서 깨질 수 있다(C33). 엔진 2개가 공존할 수 있어 "엔진 교체 시 어댑터만"이라는 단순한 그림이 성립하지 않을 수 있다(C31). C14·C15에는 "읽기 문법은 예외일 수 있음(확인 전)"을 이미 표시했다. Q15~Q21로 확인한 뒤 확정 문구로 바꾼다.
 
 ## 부록 A. 작업 규칙 (논리와 무관한 사용자 지정)
 
@@ -150,6 +229,9 @@
 - 협업 방식이나 모던 데이터 아키텍처 기준에서 비효율이 있으면 근거를 들어 수정을 요청해도 된다.
 - 조사가 필요한 주장은 출처를 붙여 검증한다. 검증하지 못한 부분은 미검증으로 표시한다.
 - 틀린 판단은 변명 없이 철회하고 이유를 기록한다.
+- **ADR 검토 기준**: 최종 구성을 위한 최적의 기술을 선정하고, 오버엔지니어링이 되지 않도록 각 페이즈에 맞는 적절한 최소 구성 기술을 도입하여, 플랫폼의 확장에 맞춰 최종 구성을 단계별로 완성한다. (P6, P9, P10과 같은 방향)
+  - **검토 대상**: 최종 구성을 위한 포석, 즉 각 페이즈의 선택이 최종 구성으로 이어지는지(재사용되는지, 버려지는지).
+  - **검토 목적**: 포석을 엄밀하게 검증해 ADR로 남긴다. 근거(V)가 없거나 미검증인 포석은 ADR로 확정하지 않고 검증 과제(Q)로 둔다.
 
 **검토 절차**
 - 논점마다 같은 순서로 진행한다: 전제(사실·원칙·가정) 제시 → 조사로 검증 → 결론(근거 ID 명시) → 미결·위험 → 확인 질문 1개.
@@ -171,6 +253,7 @@
 **용어**
 - 요구사항 중 전환을 일으키는 핵심 조건을 "선택압"이라 부른다. 선택압은 측정할 수 있는 조건이어야 한다.
 - 이 문서의 목적은 최소 구성에서 시작해 선택압에 따라 최종 아키텍처로 진화하는 논리 전개와 변곡점을 확립하는 것이다.
+- "Phase 1"은 Airbyte 단독(수집 최소 구성), "Phase 2"는 트랜스폼·발송을 더한 최소 구성(C19~C21), "Phase 3"는 오케스트레이터 + Iceberg + Trino를 더한 최종 후보다(C29). 최종 구성은 C15의 단계 3에 대응한다.
 
 ## 부록 B. 운영 배경 (사용자 제공 정보)
 
@@ -182,3 +265,10 @@
 - 휴면 식별과 처리는 이미 있는 유즈케이스다. 사전 안내 메일이 필요하며, 메일 API는 요청 ID 기반 중복 방지를 지원할 것으로 예상한다. 지원하지 않으면 중복 발송을 허용한다.
 - 향후 유즈케이스 후보: 일별 사용자 수 집계, 저장소별 스토리지 사용량, 이벤트 트리거 기반 분석.
 - 독립 변환은 잡을 추가하는 것으로 수용한다. 모든 변환이 서로 의존하는 것은 아니다.
+- PG 사용자 테이블 적재가 필요하다. 예상 규모는 약 5만 건이고 full·CDC는 미정이었다.
+- 실버에 `snapshot_date`를 붙여 일·시간 단위 이력을 남기고, 사용자 추이와 휴면 기준일 다중 비교, 예상 사용자 분석에 쓰려 한다.
+- 앞으로 모든 pull 수집은 단일 도구로 하고 싶다.
+- 스케줄러는 변환(transform)과 소비(uses) 대상으로만 쓰고, 상시 실행 단일 인스턴스를 선호한다.
+- 아키텍처 평가 기준은 유지보수성, 개발 리소스·속도다. 리소스를 중복 투자하지 않고 최종 구성으로 최소 투입하는 것을 원한다(세 번째 기준은 이렇게 해석했다).
+- Java도 Python과 동등하게 관리해야 한다. Airbyte CDK 커넥터는 Python으로 만들었다.
+- 최종 구성은 더 이상의 인프라 추가 없이 데이터 적재와 분석 요구사항을 모두 수용하는지로 평가한다. 최소 구성에서 어떤 컴포넌트를 언제 바꾸는지가 평가 대상이다.
