@@ -38,7 +38,7 @@
 ## 3. 가정
 
 - **A1** 메일 API는 요청 ID로 중복을 막는다. 깨지면 중복 발송을 허용한다. 검증: API 문서.
-- **A2** DuckDB 컨테이너 하나(최소 2코어 4GB)가 피크 시간 윈도우(530만 건)를 15분 안에 처리한다. 필요 속도는 초당 약 5,900건이고, 공개 사례의 가장 느린 값(초당 약 4.6만 건, 사양 불명)보다 낮다. 기준값은 확정, 실측은 미검증. scale up 상한은 4코어 8GB, scale out은 허용한다. 검증: 피크 시간 실측.
+- **A2** DuckDB 컨테이너 하나(최소 2코어 4GB)가 피크 시간 윈도우(530만 건)를 15분 안에 처리한다. 필요 속도는 초당 약 5,900건이고, 공개 사례의 가장 느린 값(초당 약 4.6만 건, 사양 불명)보다 낮다. 기준값은 확정, 실측은 미검증. 15분은 피크 시간 기준으로 임의 지정한 상한이며, 뒤 단계(휴면 판정, 조회)가 결과를 기다릴 수 있는 한도라는 뜻이다. 조건에 따라 바뀔 수 있다(사용자 결정, 2026-11-07). scale up 상한은 4코어 8GB, scale out은 허용한다. 검증: 피크 시간 실측.
 - **A3** 온프레미스 S3가 경로 단위 접근 정책을 지원한다. 검증: 스토리지 문서·테스트.
 - **A4** 이벤트 구동 요구(즉시 반응, 다중 소비자)는 현재 없다.
 - **A5** Airbyte CDC가 `before`·`op`를 보존한다. 검증: 실제 출력 확인. 펴서 합쳐지면 이력이 손실된다.
@@ -66,16 +66,18 @@
 - **V13** JobRunr 오픈소스는 자동 재시도(지수 백오프), 반복 작업, 내장 대시보드를 제공하고, 우선순위 큐·배치 체이닝은 Pro로 알려져 있다. 출처가 제3자 요약이라 공식 비교표 확인이 필요하다. [Quarkus Insights](https://quarkus.io/blog/quarkus-insights-264-jobrunr-failure-handling/), [JobRunr v7](https://www.jobrunr.io/en/blog/2024-04-09-jobrunr-and-jobrunr-pro-v7/)
 - **V14** Trino Iceberg 커넥터의 카탈로그 유형은 hive_metastore(기본), glue, jdbc, rest, nessie다. REST 카탈로그는 뷰와 구체화 뷰를 지원하지 않는다. JDBC는 PostgreSQL 외에는 드라이버 jar가 필요하고, Iceberg 변경 시 호환성 문제가 있다는 경고가 있다. 출처는 문서 미러다. [Iceberg connector 미러](https://dell.starburst.io/443-e/connector/iceberg.html)
 - **V15** DuckDB Iceberg 확장은 REST 카탈로그를 attach하면 INSERT, UPDATE, DELETE, MERGE INTO를 지원한다. 카탈로그 없이 `iceberg_scan`으로 읽은 테이블에는 쓸 수 없다. 수정·삭제는 merge-on-read(위치 삭제)이고 copy-on-write는 아직 없다. 버전별 문서가 다르다. [DuckDB Iceberg 쓰기](https://duckdb.org/docs/1.5/core_extensions/iceberg/writing_to_iceberg)
+  - 재확인(2026-11-07, 2.0 문서): REST 카탈로그를 attach하면 CREATE TABLE(CTAS 포함), INSERT, UPDATE, DELETE, MERGE INTO, ALTER TABLE을 지원한다. 파티션 표의 수정·삭제도 된다. copy-on-write는 지원하지 않고 merge-on-read만 된다. 설정 문서가 있는 카탈로그는 SeaweedFS, AWS Glue, Cloudflare R2, Apache Polaris, Lakekeeper, Amazon S3 Tables, Google BigLake다. 이 중 쓰기 예시가 명시된 것은 SeaweedFS뿐이다. 정비 작업(스냅샷 만료, 파일 병합)은 문서에 없다. [Writing to Iceberg](https://duckdb.org/docs/2.0/core_extensions/iceberg/writing_to_iceberg.html), [Catalogs](https://duckdb.org/docs/2.0/core_extensions/iceberg/catalogs.html)
 - **V16** Trino Iceberg 정비 명령: `OPTIMIZE`(작은 파일 병합), `expire_snapshots`, `remove_orphan_files`. 최소 보존 기본값은 7일이다. snapshot 정리를 먼저, 고아 파일 정리를 나중에 하라는 권고는 제3자 자료다. [정비 가이드](https://www.starburst.io/blog/how-table-maintenance-affects-iceberg-snapshots/), [Trino Iceberg](https://trino.io/docs/current/connector/iceberg)
 - **V17** Trino OPA 플러그인은 접근 검사, 행 필터(SQL 조건), 열 마스킹을 별도 HTTP 호출로 처리한다. Trino 자체 파일 규칙의 행 필터 지원은 공식 문서로 확인하지 못했다. [Cerbos OPA 행 필터](https://www.cerbos.dev/blog/row-level-security-for-apache-trino)
 - **V18** dbt-trino는 MERGE 기반 증분 모델을 만들고 Iceberg는 MERGE를 지원한다. snapshot 지원은 자료가 엇갈린다(구버전 PyPI는 미구현, Starburst 블로그는 지원). [dbt-trino PyPI](https://pypi.org/project/dbt-trino/1.2.1/), [Starburst](https://www.starburst.io/blog/lakehouse-data-pipeline-dbt-trino/etl)
 - **V19** Vercel 권한 구조(참고 모델): 팀 층 역할(Owner, Member, Developer, Billing, Viewer, Contributor)과 프로젝트 층 역할(Admin, Developer, Viewer)의 두 층이다. Contributor는 명시적으로 배정된 프로젝트에만 접근한다(기본 거부). 프로젝트 역할은 Contributor에게만 유효하다. 여러 Access Group이나 직접 배정이 겹치면 가장 높은 권한이 적용된다. 프로젝트 역할과 Access Group은 Enterprise 전용이다. [Access roles](https://vercel.com/docs/rbac/access-roles), [Access groups](https://vercel.com/docs/rbac/access-groups)
 - **V20** DuckDB Java 클라이언트는 JDBC 드라이버(`org.duckdb:duckdb_jdbc`)로 배포되며 `jdbc:duckdb:`로 프로세스 안에서 메모리 DB를 연다. 설정 기본값은 `memory_limit` = RAM의 80%, `threads` = CPU 코어 수다. JVM 앱 안에서 쓸 때 확장(httpfs, json) 로딩 방식은 이 문서에서 확인하지 못했다. [Java client](https://duckdb.org/docs/2.0/clients/java/overview.html), [Configuration](https://duckdb.org/docs/2.0/configuration/overview.html)
 - **V21** 변환 엔진 후보 조사(2026-11-05). ① Spark: 로컬 모드로 앱 안 실행이 가능하나 gzip 파일은 쪼갤 수 없어 파일 하나를 한 작업이 읽는다(AWS 가이드). ② DataFusion: Java 바인딩 0.1.0이 2026-05 첫 출시이고, JSON 읽기 지원이 공지와 이슈에서 엇갈린다. ③ ClickHouse(clickhouse-local): 서버 없는 단일 실행 파일, `s3()` 함수로 JSONEachRow와 gzip을 읽는다는 설명은 제3자 자료다. Java 내장 방식은 확인하지 못했다. ④ Polars: Python·Rust 전용, S3 gzip NDJSON 직접 읽기는 확인하지 못했다. [AWS Glue Spark 튜닝](https://docs.aws.eu/prescriptive-guidance/latest/tuning-aws-glue-for-apache-spark/reduce-data-scan.html), [DataFusion Java 0.1.0](https://datafusion.apache.org/blog/2026/05/26/datafusion-java-0.1.0), [datafusion-java #35](https://github.com/apache/datafusion-java/issues/35), [ClickHouse s3()(제3자)](https://oneuptime.com/blog/post/2026-03-31-clickhouse-s3-table-function/markdown), [Polars cloud storage](https://docs.pola.rs/user-guide/io/cloud-storage)
+- **V22** PG 기반 큐 후보 조사(2026-11-07). ① PGMQ: PG 확장(SQL만으로 설치하는 방법도 있음). 읽은 메시지는 visibility timeout 동안 숨겨지고, 그 안에 지우거나 보관하지 않으면 다시 보여 다른 소비자가 읽는다. 파티션 큐는 pg_partman이 필요하다. ② PgQ(SkyTools): PG 확장 + ticker 데몬(pgqd). ticker가 멈추면 배치가 만들어지지 않고 이벤트 표가 빠르게 커진다. 자료 대부분이 GitHub 미러다. 사용자가 말한 "pgqueue"는 PgQ 계열로 이해했다. PyPI의 pgqueue는 PgQ의 Python 경량 구현이며, Java용 "pgqueue" 라이브러리는 찾지 못했다. ③ Namastack Outbox: Spring Boot용 transactional outbox 라이브러리(JDBC, JPA, MongoDB, Apache 2.0). 업무 데이터와 outbox 기록을 같은 트랜잭션에 커밋하고, 키별 순서, 인스턴스 간 분할, 재시도를 제공한다. 관리자 답변에 따르면 1.0.0 이후는 Spring Boot 4만 지원한다. 엄격한 SemVer는 보장하지 않는다고 밝힌다. SQL로 직접 넣을 수 있는지는 확인하지 못했다. [PGMQ](https://github.com/pgmq/pgmq), [PGXN pgmq](https://pgxn.org/dist/pgmq/README.html), [SkyTools 미러](https://github.com/jbaanus/skytools-legacy), [pgqueue PyPI](https://pypi.org/project/pgqueue), [Namastack Outbox](https://github.com/namastack/namastack-outbox), [Boot 버전 답변](https://github.com/orgs/namastack/discussions/110)
 
 ## 5. 요구사항
 
-- **R1** 부서별 접근 격리 필터. ← F6
+- **R1** 부서별 접근 격리 필터. 걸러진 변환 로그는 부서 경로에 파일로 두고, 각 부서가 자체 도구로 S3에서 직접 읽는다. 부서의 조회 방식은 알 수 없다. 데이터 플랫폼이 아니므로 조회 기능 없이 변환 데이터를 S3 파일로만 제공한다(사용자 결정, 2026-11-07). ← F6
 - **R2** 휴면 식별. ← F6, F7
 - **R3** 휴면 사전 안내 메일. 요청 ID로 중복 방지, 미지원 시 중복 허용. ← F6, A1
 - **R4** 휴면 처리. 식별 → 안내 → 유예 → 처리 순서. ← F6, F7
@@ -83,9 +85,10 @@
 - **R6** L2가 웹 GUI로 구성·모니터링·재실행. 모든 Phase 공통 요구이며, Phase마다 쓰는 화면이 다르다(Phase 1 Airbyte, Phase 2·3 스케줄러, Phase 4 최소 구성은 스케줄러, T9 이후 오케스트레이터). ← F5, P3
 - **R7** 유지보수·진화 유연성. 독립 변환은 잡 추가로 수용. ← 부록 B
 - **R8** 향후 후보(미확정): 일별 사용자 수 집계, 저장소별 스토리지 사용량, 이벤트 트리거 분석. ← 부록 B, A4
-- **R9** 사용자 추이, 휴면 기준일 다중 비교, 예상 사용자 분석을 위해 일·시간 단위 스냅샷 이력을 실버에 남긴다. ← 부록 B
+- **R9** 사용자 추이, 휴면 기준일 다중 비교를 위해 일·시간 단위 스냅샷 이력을 실버에 남긴다. 예상 사용자 분석은 범위에서 뺀다(사용자 결정, 2026-11-06). ← 부록 B
 - **R10** PG 사용자 테이블을 수집한다. 적재 방식(full, CDC)은 C26. ← 부록 B
 - **R11** 플랫폼 사용자(최종 사용자)에게 분석 기능을 제공한다. 어드민이 지표·집계를 정의하고(Databricks형, 임의 SQL), 최종 사용자는 정의된 대시보드·지표를 본다(Firebase형). 최종 사용자는 권한이 있는 데이터만 본다. 범위는 팀 → 프로젝트 2단계이고 기본은 거부다. ← 사용자 결정(2026-11-04), V19
+  - 갱신(2026-11-07, 사용자 결정): "직접 본다"를 둘로 나눈다. ① 바깥 시스템이 골드를 읽어 간다(예: 활동 로그에서 쿼터 변화를 감지해 골드로 두면, 바깥의 별도 워크로드가 읽어 쿼터를 직접 보정). 읽는 앱은 이 시스템 밖에 있다. 아티클 3단계. ② 플랫폼이 조회 기능을 제공해 사용자가 플랫폼 안에서 직접 조회한다. 데이터 플랫폼 확장(Trino). 이 시스템은 조회 앱을 만들지 않는다. → C52
 
 ## 6. 검토 기준과 평가 축
 
@@ -181,6 +184,13 @@ Phase는 진화 단계다. 아래 8~12절은 Phase마다 같은 틀(받을 요�
 - **T7** 모델이 늘거나 L2가 PR로 SQL을 수정하기 시작하면 → dbt를 도입한다. SQL 파일은 모델로 이관한다. ← C14, A7
 - **T9** 내장 도구(db-scheduler-ui, JobRunr OSS)가 제공하지 않는 세 기능 중 하나가 필요해지면(① 날짜 구간 재실행, ② 잡 간 순서 의존, ③ 놓친 실행 보충이 업무에 영향을 줌), 또는 dbt를 도입(T7)하거나, 내장 화면이 A9를 충족하지 못하면 → 배치 앱의 스케줄러를 Dagster 또는 Airflow로 교체한다. 로직은 유지한다. ← C21, C22, A9, T7, V9, V10, V11
 - **T3** 1시간 윈도우 처리가 15분을 넘으면 → 먼저 4코어 8GB로 scale up, 그래도 넘으면 scale out한다. scale out은 같은 SQL을 입력 범위(시간대, 부서)만 바꿔 별도 컨테이너에서 동시에 실행하는 것이다. 실행끼리 데이터를 주고받지 않으므로 범위를 넘는 조인·집계(예: 전 기간 사용자별 마지막 활동)는 부분 결과를 합치는 단계가 따로 필요하다. 이것으로도 풀리지 않을 때만 분산 엔진으로 교체한다. Logic은 유지한다. scale out 대수 상한은 미정. ← A2, C16, C39
+  - 갱신(2026-11-07, 사용자 결정): 동시 실행은 Kestra 병렬 실행이 맡고, 부분 결과 합치기는 SQL 한 단계로 한다. 분할·병합 코드를 직접 짜지 않는다(P 규칙 3). 내장 스케줄러를 쓰는 중에 scale out이 필요해지면 Kestra로 옮긴다. Kestra 병렬 실행의 적합성은 미확인. ← C47
+- **C51** 로그(push) 경로는 수집 완료 신호가 없으므로 변환을 30분마다 돌린다. 정각+5분 실행은 지난 한 시간을 처음부터 다시 계산한 최종 결과로, 30분+5분 실행은 그 시간 앞 30분의 임시 결과로 쓴다. 최종이 임시를 덮어쓰므로 임시 뒤에 늦게 온 파일도 반영된다(재실행 시 같은 결과). 5분 대기는 임의 값이고, 그보다 늦은 파일은 운영자가 해당 시간을 다시 돌린다. 휴면 판정(R2)은 최종 결과만 읽는다. 처리 기준(A2, 한 시간 분량 15분)은 그대로다. 결과를 15분 안팎으로 봐야 하는 요구가 생기면, 새로 들어온 파일만 처리해 이어 붙이는 방식으로 바꾼다. 처리한 파일을 기록하는 방법은 그때 확인한다(Q32). pull 경로는 Kestra가 Airbyte sync 완료 뒤 실행한다. ← A2, R2, C47, 사용자 결정(2026-11-07)
+- **C52** 바깥 시스템의 골드 읽기 통로는 PostgreSQL 읽기 전용 계정(바깥 시스템마다 하나)과 뷰다. 뷰가 바깥 시스템과의 계약이며, 안쪽 표가 바뀌어도 뷰를 유지한다. 사용자별 분할은 바깥 시스템이 맡는다. 새 서비스를 만들지 않는다(K1, P 규칙 3). 바깥 시스템이 많아지거나, 신뢰하기 어려운 상대에게 열거나, DB 연결 수가 문제가 되면 읽기 API로 바꾼다. Trino 도입 뒤에도 권한은 저장소 권한(S3 경로, PG 계정)으로 주며, Trino 행 필터와 정책 서버(OPA)는 쓰지 않는다. Trino가 사용자별 저장소 자격 증명으로 읽는 방법은 미확인. 이 결정으로 C34(조회 API), 11절의 C44(조회 앱 권한), Q17의 행 필터 부분은 대체된다. ← R11 갱신, C43, 사용자 결정(2026-11-07)
+- **C57** dbt는 SQL 관리의 적합한 다음 도구다. 도입 이유: 모델 의존에 따른 실행 순서, 결과 시험(합치기 전 PR 검증)으로 L2가 SQL을 고칠 때(A7)의 안전장치가 된다. 연동: dbt-duckdb(DuckDB 조직, Apache 2.0)는 S3(httpfs)와 PG attach를 지원하고, Trino는 dbt-trino(V18)로 이어진다. Kestra는 DbtCLI 작업으로 컨테이너에서 dbt를 돌리고 run_results를 읽어 모델별 시험 결과를 보여 준다. Airflow는 Cosmos(Apache 2.0)가 모델을 작업·작업 그룹으로 펼친다. 실행 도구를 바꿔도 dbt 프로젝트는 남는다(C22). 영향: dbt는 Python이라 변환이 Java 배치 앱(C21, C39 ②)을 떠나 실행 도구가 부르는 dbt 컨테이너로 옮긴다. 배치 앱에는 Spring Batch 워커만 남는다. 내장 스케줄러로는 부르기 어려우므로 Kestra 또는 Airflow가 전제다. dbt Core에는 실행 기록 화면이 없고(dbt docs는 문서·열 계보), 현황은 실행 도구 화면에서 본다. 미확인: Kestra OSS의 dbt 플러그인 포함 여부, external 모델의 증분 미지원 영향, dbt-duckdb의 PG 쓰기 동작, Iceberg는 플러그인 수준(로드맵). 도입 조건 T7은 유지하며 L2 PR은 가정(A7)이다. ← A7, C14, C21, C22, C39, V18, 사용자 결정(2026-11-07). [dbt-duckdb](https://github.com/duckdb/dbt-duckdb), [Kestra dbt](https://kestra.io/plugins/plugin-dbt), [Cosmos](https://github.com/astronomer/astronomer-cosmos), [dbt docs](https://docs.getdbt.com/reference/commands/cmd-docs)
+- **C58** Iceberg 도입(T1b) 뒤에도 골드는 PG 한 곳에 둔다. Trino는 PostgreSQL 커넥터로 골드를 읽고, Iceberg는 실버에만 쓴다. 두 곳 적재는 쓰기 두 번과 한쪽 실패 시 값 불일치(Trino 조회와 바깥 시스템 조회가 다름)를 낳는다. 한 곳이면 권한도 PG 계정 권한 하나다(C52). 골드가 PG에 담기 어려울 만큼 커지면(A11 붕괴) 그때 골드를 Iceberg로 옮긴다. C43의 "Iceberg 도입 뒤 골드 원본을 S3 Iceberg로 옮기고 PG는 사본"은 이 결정으로 대체된다. 미확인: Trino PG 커넥터의 읽기 성능, 사용자별 PG 계정 권한으로의 연결. ← C43, C52, A11, 사용자 결정(2026-11-07)
+- **C56** outbox(대기 표)의 직접 구현 범위는 상태 열과 상태를 바꾸는 SQL뿐이다. 잠금과 건너뛰기는 PG `FOR UPDATE SKIP LOCKED`, 중복 방지는 고유 제약, 재시도·재시작은 Spring Batch가 맡는다(P 규칙 3). 상태가 늘거나 지연 실행·우선순위가 필요해지면 큐 도구를 검토한다. 후보와 단점은 V22. ← C35, V22, 사용자 결정(2026-11-07)
+- **Q32** 로그 수집기의 최대 전송 지연(5분 대기가 충분한지). 파일 기준 증분 처리로 바꿀 때 처리한 파일을 기록하는 방법(Kestra·DuckDB 기능인지, 직접 구현인지).
 
 **미결**
 - **Q2** L2가 고칠 수 있는 범위: SQL 전체인지, 값(부서 목록, 정규식)만인지. dbt 채택은 결정됨(C14, A7).
@@ -334,9 +344,71 @@ Phase는 진화 단계다. 아래 8~12절은 Phase마다 같은 틀(받을 요�
 - 향후 유즈케이스 후보: 일별 사용자 수 집계, 저장소별 스토리지 사용량, 이벤트 트리거 기반 분석.
 - 독립 변환은 잡을 추가하는 것으로 수용한다. 모든 변환이 서로 의존하는 것은 아니다.
 - PG 사용자 테이블 적재가 필요하다. 예상 규모는 약 5만 건이고 full·CDC는 미정이었다.
-- 실버에 `snapshot_date`를 붙여 일·시간 단위 이력을 남기고, 사용자 추이와 휴면 기준일 다중 비교, 예상 사용자 분석에 쓰려 한다.
+- 실버에 `snapshot_date`를 붙여 일·시간 단위 이력을 남기고, 사용자 추이와 휴면 기준일 다중 비교에 쓰려 한다.
 - 앞으로 모든 pull 수집은 단일 도구로 하고 싶다.
 - 스케줄러는 변환(transform)과 소비(uses) 대상으로만 쓰고, 상시 실행 단일 인스턴스를 선호한다.
 - 아키텍처 평가 기준은 유지보수성, 개발 리소스·속도다. 리소스를 중복 투자하지 않고 최종 구성으로 최소 투입하는 것을 원한다(세 번째 기준은 이렇게 해석했다).
 - Java도 Python과 동등하게 관리해야 한다. Airbyte CDK 커넥터는 Python으로 만들었다.
 - 최종 구성은 더 이상의 인프라 추가 없이 데이터 적재와 분석 요구사항을 모두 수용하는지로 평가한다. 최소 구성에서 어떤 컴포넌트를 언제 바꾸는지가 평가 대상이다.
+
+## 부록 C. 수집·스케줄러 도구의 운영자 GUI 비교 (2026-11-06 조사)
+
+운영자(L2)가 코드 없이 화면에서 할 수 있는 일을 비교한다. R6(L2가 웹 GUI로 구성·모니터링·재실행)과 Phase 1 도구 선택(Airbyte 유지)의 근거다. 표의 "언급 없음"은 아래 출처 문서에서 확인하지 못했다는 뜻이다. 기능이 없다는 뜻은 아니다.
+
+| 운영자가 하는 일 | Airbyte | db-scheduler-ui | JobRunr(오픈소스) |
+|---|---|---|---|
+| 실행 상태·이력 보기 | Job History 탭에서 최근 sync 목록 | 예정·실행·실패 작업 조회. 이력은 `scheduled_execution_logs` 표와 설정을 켜야 함 | 처리 중·대기 작업, 전체 이력, 상태 타임라인 |
+| 다시 돌리기 | 언급 없음(Sync now는 미확인) | 실행·재실행, 삭제 | 반복 작업 실행·삭제 |
+| 실패 원인 보기 | 화면 안 로그 뷰어, 검색, 다운로드, 링크 공유 | 스택 트레이스 언급 없음 | 실패 메시지와 예외 표시 |
+| 실행 일정 바꾸기 | 연결 설정에서 schedule type(scheduled, cron, manual) | 화면 기능으로 명시 없음(클라이언트에 reschedule 호출은 있음) | 언급 없음 |
+| 연결 정보·받을 표 고르기 | 스트림별 동기화 여부, sync mode, 커서, 기본 키, 제외 필드, 목적지 namespace·prefix, 스키마 변경 처리 | 없음. 설정은 application properties | 언급 없음 |
+| 화면 접근 권한 | 언급 없음 | 내장 없음. Spring Security를 직접 붙이고 read-only 모드 제공 | 인증은 Pro |
+
+**결론**
+- **C53** 스케줄러 화면(db-scheduler-ui, JobRunr)은 실행 확인과 재실행에 그치고, 연결 정보·일정·대상 같은 설정은 바꾸지 못한다. 운영자가 설정을 화면에서 바꾸는 요구(R6, "구성")는 수집 경로에서 Airbyte만 받는다. ← R6, F5, 이 부록 표
+- **C54** 따라서 Phase 1의 Airbyte는 운영 부담에도 불구하고 유지한다. 앞서 "운영자 화면은 Phase 2 스케줄러로 대신할 수 있어 Airbyte는 현재 규모에 과하다"고 본 판단은 스케줄러 화면이 설정 변경을 하지 못한다는 점을 빠뜨린 비교였으므로 철회한다. ← C53, 부록 B("모든 pull 수집은 단일 도구")
+- **C55** Airbyte 화면은 pull 경로에만 쓰인다. 로그 경로와 변환 설정(휴면 기준일, 유예 기간, 승인 기준, 부서 리소스 목록)을 화면에서 바꾸는 방법은 미정이다. ← C53
+  - 갱신(2026-11-07, 사용자 결정): 변환 설정은 Kestra 화면에서 바꾼다. 기준값은 Kestra 설정 저장소에 두고, 부서 리소스 목록(PG 표)은 실행 입력으로 받아 작업이 표를 고친다. Kestra로 설정을 바꿀 수 있으므로 별도 설정 관리 GUI(NocoDB 등)를 들일 이유는 약하다. 표 전체를 보며 고치는 화면이 꼭 필요할 때만 대안으로 둔다. 실행 입력이 표 형태 값을 받는지는 미확인. ← C47
+  - 갱신(2026-11-07, 사용자 결정): 로그 경로(수집기의 S3 전송 설정)는 운영자 화면 없이 개발자가 서버 배포 설정으로 바꾼다. 거의 바뀌지 않으므로 받아들인 빈칸으로 둔다.
+
+**미결**
+- **Q27** Airbyte self-managed(Core)에서 위 연결 설정이 모두 제공되는지. 출처 문서의 등급 표시에 Core가 있으나 등급별 차이는 문서에 설명이 없다.
+- **Q28** Airbyte 화면의 수동 실행(Sync now)과 실패 sync 재시도 동작.
+
+**출처**
+- Airbyte 연결 설정: <https://docs.airbyte.com/platform/cloud/managing-airbyte-cloud/configuring-connections>
+- Airbyte 로그 보기: <https://docs.airbyte.com/platform/operator-guides/browsing-output-logs>
+- db-scheduler-ui: <https://github.com/bekk/db-scheduler-ui>
+- JobRunr 대시보드: <https://www.jobrunr.io/en/documentation/background-methods/dashboard/>
+
+## 부록 D. 오케스트레이터 오픈소스판의 인증·권한 비교 (2026-11-07 조사)
+
+R6(운영자가 화면에서 설정·재실행)과 C55(변환 설정과 로그 경로의 화면)을 받을 오케스트레이터를 오픈소스판 기준으로 비교한다. "미확인"은 출처 문서에서 확인하지 못한 항목이다.
+
+| 항목 | Kestra OSS | Dagster OSS | Airflow OSS |
+|---|---|---|---|
+| 켜 두는 것 | 단일 프로세스 + PostgreSQL | 웹서버, 데몬, 코드 로케이션 + PostgreSQL(V10) | API 서버, 스케줄러, DAG 프로세서(triggerer 선택) + 메타DB(V10) |
+| 로그인 | Basic Auth 계정 하나(`kestra.server.basic-auth`) | 내장 없음(미확인) | 인증 관리자. 기본 Simple은 개발·시험용 |
+| 역할별 권한 | 없음. RBAC는 Enterprise | 없음. Dagster+ 전용(미확인) | Simple은 고정 역할 넷(viewer, user, op, admin). 운영용 FAB·Keycloak 인증 관리자(미확인) |
+| 감사 기록 | 없음. Enterprise | 없음(미확인) | Audit Log(미확인) |
+| 인증 확장 지점 | 문서에 없음. 플러그인은 작업·트리거용 | 문서에 없음 | `BaseAuthManager` 상속으로 직접 구현 가능 |
+| 작업 플러그인 언어 | Java(Gradle) | Python | Python |
+| 화면에서 설정·실행 값 | KV 저장소, 실행 입력(판별 제공 여부 미확인) | Launchpad 실행 설정 | Variables, Connections, Params 폼 |
+
+**결론**
+- **C47** 오케스트레이터가 필요하면 기본 후보는 Kestra OSS다. 켜 두는 것이 가장 적고, 플러그인이 Java라 배치 앱과 기술이 같다. 인증은 앞단에 oauth2-proxy를 두어 사내 SSO로 로그인만 통제한다. ← 이 부록 표, 부록 B(Java·Python 동등 관리)
+- **C48** C47의 한계: oauth2-proxy는 "들어올 수 있는가"만 정한다. 들어온 사람은 모두 Kestra의 같은 계정으로 동작하므로 사람별 권한과 변경 기록이 없다. ← 이 부록 표
+- **C49** 운영자별 권한이나 설정 변경 기록이 요구되면 개별 대안으로 Airflow OSS를 쓴다. 오픈소스판 중 역할별 권한과 인증 확장 지점을 가진 것은 Airflow뿐이다. 대가는 켜 두는 서비스가 늘고 흐름 정의가 Python이라는 점이다. ← 이 부록 표, V10
+- **C50** Dagster OSS는 Kestra보다 무겁고 오픈소스판에 권한이 없어 이 유즈케이스에서는 두 후보보다 이점이 적다. 후보에서 뺀다. ← 이 부록 표
+
+**미결**
+- **Q29** Kestra OSS 앞단 oauth2-proxy 구성: Basic Auth를 끌 수 있는지, 프록시 뒤에서 API·웹훅 경로(`open-urls`)를 어떻게 열지.
+- **Q30** Kestra OSS의 KV 저장소와 실행 입력 폼 제공 여부, Airbyte·DuckDB 플러그인의 동작.
+- **Q31** Airflow 운영용 인증 관리자(FAB, Keycloak)의 역할 구성과 Audit Log 범위.
+
+**출처**
+- Kestra OSS vs Enterprise: <https://kestra.io/docs/oss-vs-paid>
+- Kestra 보안 설정: <https://kestra.io/docs/configuration/security-and-secrets>
+- Kestra 플러그인 개발: <https://kestra.io/docs/plugin-developer-guide>
+- Airflow 인증 관리자: <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/index.html>
+- Airflow Simple 인증 관리자: <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html>
