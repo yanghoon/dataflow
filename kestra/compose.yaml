@@ -1,0 +1,115 @@
+# Kestra OSS + OIDC(oauth2-proxy) + 감사 로그 검증 환경
+#
+# 원칙: Kestra는 업스트림 이미지 그대로(포크·확장 jar 없음). 설정만 바꾼다.
+#   브라우저 ─▶ oauth2-proxy(:4180, OIDC 로그인) ─▶ kestra(:8080, 호스트에 노출 안 함)
+#                    └ upstream 요청에 Kestra Basic 자격증명 + 사용자 이메일 헤더 주입
+#   dex 는 검증용 IdP 대역이다. 운영에서는 사내 IdP(Keycloak, Entra ID 등)로 바꾼다.
+#
+# 호스트명: *.localtest.me 는 공용 DNS 에서 127.0.0.1 로 풀린다. 컨테이너 안에서는
+# 네트워크 alias 로 같은 이름이 각 서비스로 풀리게 해서, 브라우저와 컨테이너가
+# 같은 issuer/redirect URL 을 쓰게 한다.
+#
+# 비밀값은 로컬 검증용 고정값이다. 운영에서는 ESO 가 만든 Secret 으로 주입한다.
+
+name: kestra-oidc-poc
+
+services:
+  postgres:
+    image: docker.io/postgres:18
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d kestra -U kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  kestra:
+    image: docker.io/kestra/kestra:v2.0.9-no-plugins  # 공식 이미지(플러그인 미포함). 인증 검증에는 플러그인 불필요
+    command: server standalone
+    # named volume 이 root 소유로 생성되어 kestra 사용자가 /app/storage 에 못 쓴다.
+    # 공식 docker-compose 와 같이 로컬 검증에서만 root 로 실행한다.
+    user: "root"
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: k3str4
+        kestra:
+          server:
+            basic-auth:
+              # 사람은 이 계정을 모른다. oauth2-proxy 만 알고 upstream 요청에 주입한다.
+              username: admin@example.com
+              password: Kestra1234
+          repository:
+            type: postgres
+          queue:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+          url: http://kestra.localtest.me:4180/
+        # 감사 로그: Micronaut Netty 내장 access logger (설정만으로 켜짐).
+        # X-Forwarded-Email 은 oauth2-proxy 가 OIDC 클레임으로 덮어쓴 값이다(클라이언트 값은 제거됨).
+        micronaut:
+          server:
+            netty:
+              access-logger:
+                enabled: true
+                logger-name: kestra.audit
+                log-format: '%{X-Forwarded-For}i "%{X-Forwarded-Email}i" %t "%r" %s %b %D'
+        logger:
+          levels:
+            kestra.audit: INFO
+    volumes:
+      - kestra-data:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # 포트를 호스트에 노출하지 않는다 = 프록시 우회 경로 없음 (운영에서는 NetworkPolicy 로 강제)
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.46.1
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+    ports:
+      - "5556:5556"
+    networks:
+      default:
+        aliases: [dex.localtest.me]
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.6
+    command:
+      - --config=/etc/oauth2-proxy/oauth2-proxy.cfg
+      - --alpha-config=/etc/oauth2-proxy/alpha.yaml
+    environment:
+      # "Basic " + base64("admin@example.com:Kestra1234"). 운영: ESO → Secret → env
+      KESTRA_BASIC_AUTH_HEADER: "Basic YWRtaW5AZXhhbXBsZS5jb206S2VzdHJhMTIzNA=="
+      KESTRA_UI_FLAG_COOKIE: "kestraBasicAuthenticated=true; Path=/; SameSite=Lax"
+      KESTRA_CSRF_MARKER_COOKIE: "JWT=csrf-marker; Path=/; HttpOnly; SameSite=Lax"
+      OAUTH2_PROXY_COOKIE_SECRET: "0123456789abcdef0123456789abcdef"
+    volumes:
+      - ./oauth2-proxy:/etc/oauth2-proxy:ro
+    ports:
+      - "4180:4180"
+    depends_on:
+      - dex
+      - kestra
+    restart: on-failure
+    networks:
+      default:
+        aliases: [kestra.localtest.me]
+
+volumes:
+  postgres-data:
+  kestra-data:
