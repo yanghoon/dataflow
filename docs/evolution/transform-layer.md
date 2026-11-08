@@ -485,3 +485,34 @@ R6(운영자가 화면에서 설정·재실행)과 C55(변환 설정과 로그 �
 - Kestra 플러그인 개발: <https://kestra.io/docs/plugin-developer-guide>
 - Airflow 인증 관리자: <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/index.html>
 - Airflow Simple 인증 관리자: <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html>
+
+## 부록 E. 에어갭 사내 환경에서 쓸 수 있는 Airbyte 커넥터 (2026-11-08 조사)
+
+T8 ①("소스가 늘어난다")의 전제를 따지기 위해, 앞으로 들어올 소스를 개발 없이 붙일 수 있는 범위를 본다. 기준은 2026-11-08에 받은 Airbyte OSS 커넥터 레지스트리다(소스 592개, 목적지 54개, 플랫폼 최신 릴리스 v2.0.0). 커넥터 설정에 접속 주소(host, api_url, endpoint 등)를 직접 넣는 항목이 있어 사내 주소로 붙을 수 있는 것만 남겼다. 외부 SaaS나 퍼블릭 클라우드에만 붙는 것은 뺐다. 설정 항목으로 판정했을 뿐 실제 연결은 시험하지 않았다(미검증).
+
+| 유형 | 소스 | 목적지 |
+|---|---|---|
+| DB | RDBMS(PostgreSQL, Oracle), NoSQL(MongoDB, Couchbase), 분석 DB(ClickHouse, Teradata) | RDBMS(PostgreSQL, MS SQL Server), NoSQL(MongoDB, Redis), 분석 DB(ClickHouse, Teradata), 검색 엔진(Elasticsearch, Typesense) |
+| 파일 | S3 호환(MinIO, Ceph), SFTP(SFTP, SFTP Bulk), URL 파일(HTTP, SFTP) | S3 호환(MinIO, Ceph), Iceberg(S3 Data Lake), 로컬 파일(DuckDB, SQLite), SFTP(SFTP-JSON) |
+| 메시징 | Kafka | Kafka, RabbitMQ |
+| 사내 설치형 서비스 | 개발 도구(GitHub Enterprise Server, GitLab self-managed), 이슈·장애 도구(Jira, Sentry), 운영·분석 도구(Grafana, Metabase) | 없음 |
+| 벡터 DB | 없음 | PGVector, Qdrant(사내 임베딩 엔드포인트가 있을 때만) |
+
+**에어갭 설치 전제**
+- 플랫폼 이미지와 쓸 커넥터 이미지를 모두 사내 레지스트리로 옮기고 `global.image.registry`로 지정한다. 이미지 목록은 `abctl images manifest`로 뽑는다.
+- 이미지를 전체 도메인으로 지정한 커스텀 커넥터는 레지스트리 설정을 무시하고 그 도메인에서 받는다. 사내 레지스트리 이름으로 다시 지정해야 한다.
+- Connector Builder 커넥터를 돌리는 공통 이미지(source-declarative-manifest)도 옮겨야 하는지, 원격 커넥터 레지스트리 조회를 끄는 방법은 미확인이다.
+
+**결론**
+- **C63** 에어갭에서 개발 없이 붙는 소스는 DB, 파일, 사내 설치형 서비스 일부로 좁다. 앞으로 늘어날 소스가 사내 자체 시스템이면 여전히 Builder나 CDK로 만들어야 하므로, T8 ①의 "소스가 늘어난다"만으로는 Airbyte의 커넥터 폭 이점이 커지지 않는다. 이점이 커지는 것은 늘어날 소스가 위 표에 있을 때다. ← 이 부록 표, C54, T8
+- **C64** Gerrit 커넥터는 레지스트리에 없다(CDK 유지). GHES는 공식 GitHub 커넥터가 `api_url`로 붙을 수 있으나, 지금 받는 사용자 CSV를 대신할 스트림이 있는지는 미확인이다(Q35). ← 이 부록 표, F8, C20
+
+**미결**
+- **Q35** 공식 GitHub 커넥터가 GHES에서 사용자 목록을 주는지, 주면 Builder 커넥터를 대신할 수 있는지.
+- **Q36** 에어갭 설치에서 원격 커넥터 레지스트리 조회를 끄는 방법과 Builder 커넥터 실행 이미지 반입 여부.
+
+**출처**
+- Airbyte OSS 커넥터 레지스트리: <https://connectors.airbyte.com/files/registries/v0/oss_registry.json>
+- airbyte-platform 릴리스: <https://github.com/airbytehq/airbyte-platform/releases>
+- Airbyte 커스텀 이미지 레지스트리: <https://docs.airbyte.com/platform/deploying-airbyte/integrations/custom-image-registries>
+- Airbyte 커스텀 커넥터: <https://docs.airbyte.com/platform/operator-guides/using-custom-connectors>
