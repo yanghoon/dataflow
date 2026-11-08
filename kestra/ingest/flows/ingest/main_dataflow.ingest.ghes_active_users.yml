@@ -1,0 +1,86 @@
+# GHES active_users.csv를 생성이 끝날 때까지 기다려 원본 그대로 S3 브론즈에 올린다. ADR: docs/adr/airbyte/0005
+# 생성 중 응답(202 또는 200 + 빈 본문)은 조건이 거짓이라 다시 받는다(IH2). 최대 대기를 넘으면 실패한다(IH3).
+# 200이고 크기 > 0이면 끝낸다. 내용은 검사하지 않는다(IH4). 비밀값은 실행마다 read()로 읽는다.
+id: ghes_active_users
+namespace: dataflow.ingest
+
+labels:
+  system.readOnly: "false"   # 잠금 설정 1
+
+concurrency:
+  limit: 1
+  behavior: QUEUE
+
+# 간격·최대 대기는 ISO-8601 문자열로 받는다. DURATION 입력은 실행 기록에 초 숫자(예: 20.0)로 남아
+# LoopUntil에 템플릿으로 넘기면 의도와 다르게 해석된다(v2.0.9에서 확인).
+inputs:
+  - id: interval
+    type: STRING
+    defaults: PT30S
+    validator: "^PT[0-9]+[SM]$"
+  - id: max_wait
+    type: STRING
+    defaults: PT15M
+    validator: "^PT[0-9]+[SM]$"
+
+tasks:
+  - id: keys
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      partition: "dt={{ (trigger.date ?? execution.startDate) | date('yyyy-MM-dd', timeZone='UTC') }}/hr={{ (trigger.date ?? execution.startDate) | date('HH', timeZone='UTC') }}"
+      file: "{{ execution.startDate | date('yyyyMMdd', timeZone='UTC') }}T{{ execution.startDate | date('HHmmss', timeZone='UTC') }}Z_{{ execution.id }}"
+      scheduled_at: "{{ (trigger.date ?? execution.startDate) | date('iso', timeZone='UTC') }}"
+
+  - id: wait_report
+    type: io.kestra.plugin.core.flow.LoopUntil
+    condition: "{{ outputs.download.code == 200 and outputs.download.length > 0 }}"
+    checkFrequency:
+      interval: "{{ inputs.interval }}"
+      maxDuration: "{{ inputs.max_wait }}"
+    failOnMaxReached: true
+    tasks:
+      - id: download
+        type: io.kestra.plugin.core.http.Download
+        uri: "{{ kv('GHES_BASE_URL') }}/stafftools/reports/active_users.csv"   # 예) https://ghes.example.com
+        failOnEmptyResponse: false
+        options:
+          auth:
+            type: BEARER
+            token: "{{ read('file:///run/secrets/GHES_PAT') | trim }}"
+        retry:   # IR6
+          type: exponential
+          interval: PT10S
+          maxInterval: PT2M
+          maxAttempts: 3
+          maxDuration: PT10M
+
+  - id: upload
+    type: io.kestra.plugin.aws.s3.Upload
+    bucket: "{{ kv('S3_BUCKET') }}"
+    endpointOverride: "{{ kv('S3_ENDPOINT') }}"
+    forcePathStyle: true
+    compatibilityMode: true   # v2.0.9 aws 플러그인은 forcePathStyle에 compatibilityMode를 요구(전송 약 2GB 한도)
+    region: "{{ kv('S3_REGION', errorOnMissing=false) ?? 'us-east-1' }}"
+    # read() 값은 secret()과 달리 로그 마스킹 대상이 아니다. 로그·출력에 남기지 않는다.
+    accessKeyId: "{{ read('file:///run/secrets/S3_ACCESS_KEY_ID') | trim }}"
+    secretKeyId: "{{ read('file:///run/secrets/S3_SECRET_KEY_ID') | trim }}"
+    from: "{{ outputs.download.uri }}"
+    key: "bronze/ghes/active_users/{{ outputs.keys.values.partition }}/{{ outputs.keys.values.file }}.csv"
+    retry:
+      type: exponential
+      interval: PT10S
+      maxInterval: PT2M
+      maxAttempts: 3
+      maxDuration: PT10M
+
+outputs:
+  - id: scheduled_at
+    type: STRING
+    value: "{{ outputs.keys.values.scheduled_at }}"
+
+triggers:
+  - id: hourly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 * * * *"
+    timezone: UTC
+

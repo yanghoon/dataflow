@@ -1,0 +1,39 @@
+# 운영 인스턴스용. Git main 의 흐름과 namespace file 을 Kestra 에 반영한다. ADR: docs/adr/airbyte/0005
+# 처음 한 번은 화면이나 API 로 직접 등록한다. 파일 감시(compose)와 함께 쓰면 반영 경로가 둘이 되므로 하나만 쓴다.
+id: git_sync
+namespace: dataflow.system
+
+inputs:
+  - id: dry_run
+    type: BOOLEAN
+    defaults: true
+
+tasks:
+  - id: sync_flows
+    type: io.kestra.plugin.git.SyncFlows
+    url: "{{ kv('GIT_REPO_URL') }}"
+    branch: main
+    username: "{{ read('file:///run/secrets/GIT_USERNAME') | trim }}"
+    password: "{{ read('file:///run/secrets/GIT_TOKEN') | trim }}"
+    gitDirectory: kestra/ingest/flows/ingest
+    targetNamespace: dataflow.ingest
+    delete: false
+    dryRun: "{{ inputs.dry_run }}"
+
+  - id: sync_files
+    type: io.kestra.plugin.git.SyncNamespaceFiles
+    url: "{{ kv('GIT_REPO_URL') }}"
+    branch: main
+    username: "{{ read('file:///run/secrets/GIT_USERNAME') | trim }}"
+    password: "{{ read('file:///run/secrets/GIT_TOKEN') | trim }}"
+    gitDirectory: kestra/ingest/_files
+    namespace: dataflow.ingest
+    delete: false
+    dryRun: "{{ inputs.dry_run }}"
+
+triggers:
+  - id: every_10m
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/10 * * * *"
+    inputs:
+      dry_run: false

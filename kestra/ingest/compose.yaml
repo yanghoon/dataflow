@@ -1,0 +1,140 @@
+# Kestra OSS pull 수집(Gerrit, GHES CSV, PG). 초기 운영도 이 단일 compose 로 한다. ADR: docs/adr/airbyte/0005
+#
+#   kestra(:8080, 공식 이미지 + 플러그인) ─▶ s3(:8333, SeaweedFS. 사내 S3 대역. 운영은 사내 S3 로 교체)
+#        ├ postgres  kestra(메타DB) · source_users(PG 시험 소스) · ingest_ops(실행 결과 표)
+#        └▶ mock-gerrit(:8081), mock-ghes(:8082)  (로컬 전용 목 서버, mock/server.py)
+#
+# - 흐름은 ./flows/ingest, ./flows/watch 를 파일 감시로 반영한다. 파일 이름은 main_<namespace>.<id>.yml(v2.0.9는 첫 "_" 앞을 테넌트로 읽는다).
+#   flows/system(git_sync)은 인스턴스를 나눌 때만 쓰므로 마운트하지 않는다.
+# - Gerrit 스크립트는 ./_files 를 /app/ingest/scripts 에 마운트해 Process 실행기로 돌린다(호스트 git pull 로 반영).
+# - 비밀값은 ./secrets/<KEY> 파일(평문 한 줄). 디렉터리째 /run/secrets 에 읽기 전용으로 마운트하고,
+#   흐름은 read('file:///run/secrets/<KEY>') 로 실행마다 읽는다. 파일을 바꾸면 재기동 없이 다음 실행부터 반영.
+#   파일 단위 마운트나 compose `secrets:` 는 편집기가 새 inode 로 저장하면 옛 내용이 남으므로 쓰지 않는다.
+# - 인증(oauth2-proxy)은 ../compose.yaml PoC 범위라 여기서는 Basic Auth 만 둔다.
+
+name: kestra-ingest
+
+services:
+  postgres:
+    image: docker.io/postgres:18
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./pg-init:/docker-entrypoint-initdb.d:ro   # source_users, ingest_ops (볼륨이 비었을 때 한 번)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d kestra -U kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 사내 S3 대역(로컬 전용). MinIO 커뮤니티 이미지는 배포가 중단되어 SeaweedFS S3 게이트웨이를 쓴다.
+  s3:
+    image: docker.io/chrislusf/seaweedfs:latest
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    ports:
+      - "8333:8333"
+    volumes:
+      - s3-data:/data
+      - ./s3/s3.json:/etc/seaweedfs/s3.json:ro
+
+  s3-init:   # 버킷 생성. 검증 때 객체 조회에도 같은 이미지를 쓴다
+    image: docker.io/amazon/aws-cli:latest
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: dataflow
+      AWS_SECRET_ACCESS_KEY: dataflow-secret
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: >
+      /bin/sh -c "
+      until aws --endpoint-url http://s3:8333 s3api list-buckets >/dev/null 2>&1; do sleep 2; done;
+      aws --endpoint-url http://s3:8333 s3 mb s3://dataflow-bronze || true
+      "
+
+  # 목 서버(로컬 개발 전용, 운영 compose 에서는 뺀다). 자격 증명은 kestra 와 같은 ./secrets 를 읽는다.
+  mock-gerrit:
+    image: docker.io/python:3.13-slim
+    command: ["python", "/mock/server.py", "gerrit"]
+    environment:
+      MOCK_GERRIT_ACCOUNTS: "${MOCK_GERRIT_ACCOUNTS:-250}"
+      MOCK_GERRIT_PROJECTS: "${MOCK_GERRIT_PROJECTS:-250}"
+      MOCK_GERRIT_GROUPS: "${MOCK_GERRIT_GROUPS:-200}"
+      MOCK_GERRIT_DUP: "${MOCK_GERRIT_DUP:-0}"
+      MOCK_FAIL_FIRST: "${MOCK_FAIL_FIRST:-0}"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./mock:/mock:ro
+      - ./secrets:/run/secrets:ro
+
+  mock-ghes:
+    image: docker.io/python:3.13-slim
+    command: ["python", "/mock/server.py", "ghes"]
+    environment:
+      MOCK_GHES_PENDING: "${MOCK_GHES_PENDING:-2}"
+      MOCK_GHES_MODE: "${MOCK_GHES_MODE:-202}"   # empty 면 200 + 빈 본문. 셸 변수로 바꿔 시험한다
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./mock:/mock:ro
+      - ./secrets:/run/secrets:ro
+
+  kestra:
+    image: docker.io/kestra/kestra:v2.0.9   # 공식 이미지(플러그인 포함). Python 은 기본 이미지에 있음
+    command: server standalone
+    user: "root"   # 로컬 검증에서만. named volume 권한 문제(../compose.yaml 과 같음)
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: k3str4
+        kestra:
+          server:
+            basic-auth:
+              username: admin@example.com
+              password: Kestra1234
+          repository:
+            type: postgres
+          queue:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+          tutorial-flows:
+            enabled: false
+          # read('file://...') 를 /run/secrets 아래로만 허용한다(LocalFilesConfiguration, 파일 함수는 기본 켜짐)
+          local-files:
+            allowed-paths:
+              - /run/secrets
+          url: http://localhost:8080/
+        micronaut:
+          io:
+            watch:
+              enabled: true
+              paths:
+                - /app/flows
+    ports:
+      - "8080:8080"
+    volumes:
+      - kestra-data:/app/storage
+      - ./flows/ingest:/app/flows/ingest:ro
+      - ./flows/watch:/app/flows/watch:ro
+      - ./_files:/app/ingest/scripts:ro
+      - ./secrets:/run/secrets:ro   # 디렉터리째 마운트(chmod 700, 파일 600)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  s3-data:
+  kestra-data:

@@ -1,0 +1,70 @@
+# PG 사용자 테이블 전체를 CSV로 받아 원본 그대로 S3 브론즈에 올린다. ADR: docs/adr/airbyte/0005 (IP1~IP3)
+# 타입은 실버가 정한다. PG CSV는 NULL을 따옴표 없는 빈 값, 빈 문자열을 ""로 쓴다.
+id: pg_users
+namespace: dataflow.ingest
+
+labels:
+  system.readOnly: "false"   # 잠금 설정 1
+
+concurrency:
+  limit: 1
+  behavior: QUEUE
+
+tasks:
+  - id: keys
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      partition: "dt={{ (trigger.date ?? execution.startDate) | date('yyyy-MM-dd', timeZone='UTC') }}/hr={{ (trigger.date ?? execution.startDate) | date('HH', timeZone='UTC') }}"
+      file: "{{ execution.startDate | date('yyyyMMdd', timeZone='UTC') }}T{{ execution.startDate | date('HHmmss', timeZone='UTC') }}Z_{{ execution.id }}"
+      scheduled_at: "{{ (trigger.date ?? execution.startDate) | date('iso', timeZone='UTC') }}"
+
+  - id: export
+    type: io.kestra.plugin.jdbc.postgresql.CopyOut
+    url: "{{ kv('PG_URL') }}"
+    username: "{{ read('file:///run/secrets/PG_USERNAME') | trim }}"
+    password: "{{ read('file:///run/secrets/PG_PASSWORD') | trim }}"
+    sql: "SELECT * FROM {{ kv('PG_TABLE') }}"
+    format: CSV
+    header: true
+    retry:   # IR6
+      type: exponential
+      interval: PT10S
+      maxInterval: PT2M
+      maxAttempts: 3
+      maxDuration: PT10M
+
+  - id: check_rows   # IP2: 0건이면 올리지 않고 실패
+    type: io.kestra.plugin.core.execution.Fail
+    condition: "{{ outputs.export.rowCount == 0 }}"
+    errorMessage: "PG table returned no rows"
+
+  - id: upload
+    type: io.kestra.plugin.aws.s3.Upload
+    bucket: "{{ kv('S3_BUCKET') }}"
+    endpointOverride: "{{ kv('S3_ENDPOINT') }}"
+    forcePathStyle: true
+    compatibilityMode: true   # v2.0.9 aws 플러그인은 forcePathStyle에 compatibilityMode를 요구(전송 약 2GB 한도)
+    region: "{{ kv('S3_REGION', errorOnMissing=false) ?? 'us-east-1' }}"
+    # read() 값은 secret()과 달리 로그 마스킹 대상이 아니다. 로그·출력에 남기지 않는다.
+    accessKeyId: "{{ read('file:///run/secrets/S3_ACCESS_KEY_ID') | trim }}"
+    secretKeyId: "{{ read('file:///run/secrets/S3_SECRET_KEY_ID') | trim }}"
+    from: "{{ outputs.export.uri }}"
+    key: "bronze/pg/users/{{ outputs.keys.values.partition }}/{{ outputs.keys.values.file }}.csv"
+    retry:
+      type: exponential
+      interval: PT10S
+      maxInterval: PT2M
+      maxAttempts: 3
+      maxDuration: PT10M
+
+outputs:
+  - id: scheduled_at
+    type: STRING
+    value: "{{ outputs.keys.values.scheduled_at }}"
+
+triggers:
+  - id: hourly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 * * * *"
+    timezone: UTC
+

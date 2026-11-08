@@ -1,0 +1,32 @@
+# 수집 흐름의 결과(SUCCESS·FAILED)를 PG 표 ingest_ops.ingest_run_status에 한 줄씩 남긴다. ADR: docs/adr/airbyte/0005
+# 운영자는 Kestra 화면 실행 목록으로 보고, SQL로도 "최근 실패", "빠진 시간대"를 볼 수 있다. SMTP 알림은 두지 않는다.
+# 이 흐름은 dataflow.system 에 두어 자기 자신을 감시하지 않는다.
+id: ingest_watch
+namespace: dataflow.system
+
+tasks:
+  - id: record
+    type: io.kestra.plugin.jdbc.postgresql.Query
+    url: "{{ kv('OPS_PG_URL') }}"
+    username: "{{ read('file:///run/secrets/OPS_PG_USERNAME') | trim }}"
+    password: "{{ read('file:///run/secrets/OPS_PG_PASSWORD') | trim }}"
+    fetchType: NONE
+    # 값은 Kestra가 만든 식별자·상태·시각뿐이다(영숫자·점·밑줄·ISO 시각). 예정 시각은 수집 흐름의 출력 scheduled_at.
+    sql: |
+      INSERT INTO ingest_run_status (flow_id, scheduled_at, execution_id, state, ended_at)
+      VALUES (
+        '{{ trigger.flowId }}',
+        NULLIF('{{ trigger.outputs[trigger.namespace ~ "." ~ trigger.flowId ~ ".scheduled_at"] ?? (trigger.outputs.scheduled_at ?? "") }}', '')::timestamptz,
+        '{{ trigger.executionId }}',
+        '{{ trigger.state }}',
+        '{{ trigger.endDate ?? now() }}'::timestamptz
+      )
+      ON CONFLICT (execution_id) DO UPDATE SET state = EXCLUDED.state, ended_at = EXCLUDED.ended_at
+
+triggers:
+  - id: on_ingest_end
+    type: io.kestra.plugin.core.trigger.Flow
+    dependsOn:
+      - namespace: dataflow.ingest
+        states: [SUCCESS, FAILED]
+        when: "{{ flow.id != 'setup_kv' }}"
