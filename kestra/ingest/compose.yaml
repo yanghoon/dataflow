@@ -1,6 +1,6 @@
 # Kestra OSS pull 수집(Gerrit, GHES CSV, PG). 초기 운영도 이 단일 compose 로 한다. ADR: docs/adr/airbyte/0005
 #
-#   kestra(:8080, 공식 이미지 + 플러그인) ─▶ s3(:8333, SeaweedFS. 사내 S3 대역. 운영은 사내 S3 로 교체)
+#   kestra(:8080, 공식 이미지 + 플러그인) ─▶ s3(:8333, versitygw. 사내 S3 대역. 운영은 사내 S3 로 교체)
 #        ├ postgres  kestra(메타DB) · source_users(PG 시험 소스) · ingest_ops(실행 결과 표)
 #        └▶ mock-gerrit(:8081), mock-ghes(:8082)  (로컬 전용 목 서버, mock/server.py)
 #
@@ -30,15 +30,21 @@ services:
       timeout: 5s
       retries: 20
 
-  # 사내 S3 대역(로컬 전용). MinIO 커뮤니티 이미지는 배포가 중단되어 SeaweedFS S3 게이트웨이를 쓴다.
+  # 사내 S3 대역(로컬 전용). versitygw posix: 객체를 일반 파일로 저장한다(ADR lakehouse/0001).
+  # 버킷 = /data 아래 폴더. 버킷 local 은 lakehouse/s3-local 폴더를 그대로 쓴다.
+  # macOS 폴더 마운트는 xattr 를 지원하지 않으므로 메타데이터(ACL 등)는 --sidecar 폴더에 따로 둔다.
   s3:
-    image: docker.io/chrislusf/seaweedfs:latest
-    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    image: docker.io/versity/versitygw:latest
+    command: ["--port", ":8333", "posix", "--sidecar", "/meta", "/data"]
+    environment:
+      ROOT_ACCESS_KEY_ID: dataflow          # 로컬 전용 키(s3-init, secrets/S3_* 와 같음)
+      ROOT_SECRET_ACCESS_KEY: dataflow-secret
     ports:
       - "8333:8333"
     volumes:
-      - s3-data:/data
-      - ./s3/s3.json:/etc/seaweedfs/s3.json:ro
+      - s3-objects:/data
+      - s3-meta:/meta
+      - ../../lakehouse/s3-local:/data/local
 
   s3-init:   # 버킷 생성. 검증 때 객체 조회에도 같은 이미지를 쓴다
     image: docker.io/amazon/aws-cli:latest
@@ -136,5 +142,6 @@ services:
 
 volumes:
   postgres-data:
-  s3-data:
+  s3-objects:
+  s3-meta:
   kestra-data:

@@ -1,7 +1,7 @@
 # Kestra OSS pull 수집 (Gerrit, GHES CSV, PG)
 
 Airbyte 대신 Kestra OSS 흐름으로 pull 수집을 한다. 결정, 규칙, 검증 결과는 [ADR-0005](../../docs/adr/airbyte/0005-kestra-pull-ingestion-instead-of-airbyte.md).
-**상태: 로컬 compose(Kestra v2.0.9, 목 서버, SeaweedFS S3)에서 `verify/verify.sh` 20개 항목 통과(2026-11-09).** 실제 Gerrit·GHES·사내 S3는 붙여 보지 않았다.
+**상태: 로컬 compose(Kestra v2.0.9, 목 서버, SeaweedFS S3)에서 `verify/verify.sh` 20개 항목 통과(2026-11-09).** 로컬 S3는 2026-11-17 versitygw로 바꿨다(ADR lakehouse/0001). 바꾼 뒤에는 버킷 생성, 읽고 쓰기, 틀린 키 거부, 재시작 뒤 유지만 확인했고 `verify.sh` 전체는 다시 돌리지 않았다. 실제 Gerrit·GHES·사내 S3는 붙여 보지 않았다.
 
 ## 요약
 
@@ -23,7 +23,7 @@ Airbyte 대신 Kestra OSS 흐름으로 pull 수집을 한다. 결정, 규칙, �
 | `_files/gerrit/gerrit.py` | Gerrit 세 스트림 수집. 표준 라이브러리만 |
 | `mock/server.py` | Gerrit·GHES 목 서버(표준 라이브러리만, 로컬 전용) |
 | `pg-init/01-init.sql` | compose postgres에 `source_users`(시험 소스 500행), `ingest_ops`(실행 결과 표) 생성 |
-| `s3/s3.json` | 로컬 SeaweedFS S3 자격 증명 |
+| `compose.yaml`의 `s3` | 로컬 S3(versitygw). 키는 로컬 전용 `dataflow` / `dataflow-secret`, 버킷 `local` = `lakehouse/s3-local/` |
 | `tests/` | 단위 시험, 목 서버 시험(Kestra 없이) |
 | `verify/verify.sh` | 스택을 띄워 ADR-0005 검증을 처음부터 끝까지 돌림 |
 | `compose.yaml` | 초기 운영·로컬 개발 단일 compose |
@@ -50,7 +50,7 @@ uvx pytest -q tests                # Kestra 없이 단위·목 서버 시험만
 | 실행 입력 | `ghes_active_users`의 `interval`, `max_wait`(ISO-8601 문자열, 예 `PT30S`) | 실행할 때 화면에서 |
 | 비밀값 | `GERRIT_USERNAME`, `GERRIT_PASSWORD`, `GHES_PAT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_KEY_ID`, `PG_USERNAME`, `PG_PASSWORD`, `OPS_PG_USERNAME`, `OPS_PG_PASSWORD` | `secrets/<KEY>` 파일. 재기동 없음 |
 
-`setup_kv`의 기본값은 로컬 compose 기준이다(목 서버, SeaweedFS `http://s3:8333`, compose postgres). 운영에서는 입력값만 바꿔 실행한다.
+`setup_kv`의 기본값은 로컬 compose 기준이다(목 서버, versitygw `http://s3:8333`, compose postgres). 운영에서는 입력값만 바꿔 실행한다.
 
 ## 비밀값
 

@@ -26,4 +26,5 @@ date: 2026-11-16
 ## Consequences
 
 - 운영 S3를 대신하지 않는다. 버전 관리, 정책, 서버 쪽 암호화 같은 기능은 시험하지 않는다.
-- `kestra/ingest/compose.yaml`의 `s3` 서비스를 versitygw로 바꾸고 `lakehouse/s3-local/`을 `/data/local`로 마운트해야 한다. 아직 바꾸지 않았다.
+- 2026-11-17 `kestra/ingest/compose.yaml`의 `s3` 서비스를 versitygw로 바꾸고 `lakehouse/s3-local/`을 `/data/local`로 마운트했다. SeaweedFS 설정(`s3/s3.json`)은 지웠다.
+- macOS 폴더 마운트는 xattr를 지원하지 않아 `local` 버킷 조회가 실패한다(`get acl: operation not supported`). 그래서 메타데이터는 `--sidecar /meta`(named volume)에 따로 둔다.

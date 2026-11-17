@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ADR-0005 검증을 로컬 compose 에서 다시 돌린다. 실제 Gerrit·GHES·사내 S3 없이 목 서버와 SeaweedFS 로 한다.
+# ADR-0005 검증을 로컬 compose 에서 다시 돌린다. 실제 Gerrit·GHES·사내 S3 없이 목 서버와 versitygw 로 한다.
 #   cd kestra/ingest && ./verify/verify.sh            # 지금 띄운 스택에서
 #   VERIFY_RESET=1 ./verify/verify.sh                 # 볼륨까지 지우고 처음부터(로컬 전용. 운영 compose 에서 쓰지 않는다)
 # 결과: 항목마다 PASS/FAIL, 마지막에 합계. 실패가 있으면 종료 코드 1.
