@@ -1,6 +1,9 @@
 -- 단계 사이 숫자가 맞는지 본다. ok 열이 모두 true 여야 한다.
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog.sql
+.read pipelines/jaffle_shop_sales/_catalog_source.sql
+.read pipelines/jaffle_shop_sales/_catalog_bronze.sql
+.read pipelines/jaffle_shop_sales/_catalog_silver.sql
+.read pipelines/jaffle_shop_sales/_catalog_gold.sql
 
 CREATE TEMP TABLE src_orders   AS FROM source_raw_orders();
 CREATE TEMP TABLE src_items    AS FROM source_raw_order_items();

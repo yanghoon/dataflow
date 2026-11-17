@@ -1,7 +1,8 @@
 -- silver.order_lines(가장 늦은 스냅샷) → gold.product_daily_sales(dt = 주문 날짜)
 -- 상품 × 날짜를 집계한다. 금액 단위는 센트(원본과 같음).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog.sql
+.read pipelines/jaffle_shop_sales/_catalog_silver.sql
+.read pipelines/jaffle_shop_sales/_catalog_gold.sql
 
 CREATE TEMP TABLE product_daily_sales AS
 SELECT max(snapshot_at)                        AS snapshot_at,

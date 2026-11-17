@@ -6,7 +6,8 @@
 -- T 시점의 원본 상태: 매장은 opened_at <= T, 주문은 ordered_at < T, 품목은 그 주문의 것, 고객·상품은 전체.
 -- 파일 이름 = <실행 시각 T+5분>_sim<YYYYMMDDHH> (ADR-0005 B1·B2와 같은 꼴, sim = 흉내 낸 실행 ID)
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog.sql
+.read pipelines/jaffle_shop_sales/_catalog_source.sql
+.read pipelines/jaffle_shop_sales/_catalog_bronze.sql
 .shell mkdir -p build
 
 CREATE TEMP TABLE snaps AS

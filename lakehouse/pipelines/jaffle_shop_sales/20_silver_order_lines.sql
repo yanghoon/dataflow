@@ -3,7 +3,8 @@
 -- 그 실행의 매장 ⟗ 주문 ⟗ 품목을 full join 한다. 고객·상품은 붙이기만 한다(left join).
 -- 한 행 = 주문 품목 하나. 주문이 없는 매장도 한 행으로 남는다(주문 열은 NULL).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog.sql
+.read pipelines/jaffle_shop_sales/_catalog_bronze.sql
+.read pipelines/jaffle_shop_sales/_catalog_silver.sql
 
 CREATE TEMP TABLE files AS
 SELECT file,

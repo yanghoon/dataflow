@@ -2,7 +2,8 @@
 -- 매장 × 날짜를 집계한다. 금액 단위는 센트(원본과 같음).
 -- 합계는 BIGINT로 바꿔 쓴다(sum()은 HUGEINT를 돌려준다).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog.sql
+.read pipelines/jaffle_shop_sales/_catalog_silver.sql
+.read pipelines/jaffle_shop_sales/_catalog_gold.sql
 
 CREATE TEMP TABLE s AS FROM silver_order_lines_latest();
 
