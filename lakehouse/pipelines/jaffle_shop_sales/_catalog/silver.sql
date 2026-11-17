@@ -1,4 +1,4 @@
--- 층별 카탈로그: silver. 이름 규칙은 _catalog_source.sql 머리말과 같다.
+-- 층별 카탈로그: silver. 이름 규칙은 _catalog/source.sql 머리말과 같다.
 -- order_lines: 한 행 = 주문 품목 하나. 스냅샷(dt/hr 폴더)마다 전체가 들어 있다. dt, hr 는 폴더 이름이라 열이 아니다.
 
 CREATE MACRO silver_order_lines_types() AS {

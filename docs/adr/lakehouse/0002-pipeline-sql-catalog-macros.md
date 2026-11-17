@@ -5,11 +5,11 @@ date: 2026-11-17
 
 # 파이프라인 SQL의 파일 위치와 타입은 카탈로그 macro에 두고, 본문은 이름으로만 읽고 쓴다
 
-파이프라인 SQL은 문장마다 `read_csv(getvariable('root') || '경로', 옵션 …)`와 타입 변환을 직접 적었다. 같은 내용이 파일마다 반복되고 핵심 로직이 묻혔다. 그래서 파이프라인마다 층별 카탈로그 파일(`_catalog_<층>.sql`)에 위치, 스키마, 읽기 옵션을 macro로 선언한다. 본문은 `FROM 이름`으로 읽고 업무 규칙과 집계만 담는다. 나중에 dbt로 옮길 때 구조가 그대로 이어지게 하는 것이 목표다.
+파이프라인 SQL은 문장마다 `read_csv(getvariable('root') || '경로', 옵션 …)`와 타입 변환을 직접 적었다. 같은 내용이 파일마다 반복되고 핵심 로직이 묻혔다. 그래서 파이프라인마다 층별 카탈로그 파일(`_catalog/<층>.sql`)에 위치, 스키마, 읽기 옵션을 macro로 선언한다. 본문은 `FROM 이름`으로 읽고 업무 규칙과 집계만 담는다. 나중에 dbt로 옮길 때 구조가 그대로 이어지게 하는 것이 목표다.
 
 ## 결정
 
-1. **층별 카탈로그**: 파이프라인 폴더에 층마다 파일 하나(`_catalog_source.sql`, `_catalog_bronze.sql`, `_catalog_silver.sql`, `_catalog_gold.sql`). 테이블 하나의 위치와 스키마는 한 파일에만 있다. 본문은 맨 위에서 `_shared/_init.sql`과 필요한 층의 파일만 `.read`로 읽는다(예: 31은 silver, gold). 층 파일끼리는 서로 읽지 않는다.
+1. **층별 카탈로그**: 파이프라인 폴더의 `_catalog/` 폴더에 층마다 파일 하나(`source.sql`, `bronze.sql`, `silver.sql`, `gold.sql`). 폴더로 두어 파일 목록 맨 위에 보이게 한다. 테이블 하나의 위치와 스키마는 한 파일에만 있다. 본문은 맨 위에서 `_shared/_init.sql`과 필요한 층의 파일만 `.read`로 읽는다(예: 31은 silver, gold). 층 파일끼리는 서로 읽지 않는다.
 2. **스키마**: 테이블마다 `{계층}_{테이블}_types()` scalar macro로 열 이름과 타입을 선언한다. 읽기 macro는 `all_varchar = true, types = …_types()`로 읽는다. `types`는 이름으로 맞추므로 열 이름이 바뀌거나 빠지면 읽기가 실패한다. 브론즈와 source도 모두 문자열이지만 열 목록을 선언한다.
 3. **읽기**: 테이블마다 table macro 하나, 이름은 `{계층}_{테이블}()`(예: `bronze_orders()`, `silver_order_lines()`). 위치, 파일 패턴, 읽기 옵션, 스키마만 담는다. 위치 인자(`root := getvariable('root')`)를 기본값과 함께 받는다. DuckDB 2.0은 인자 없는 macro와 뷰를 만들 때 파일을 읽어서, 아직 없는 출력을 선언하면 실패한다. 인자가 있으면 호출할 때 읽는다. 파일 경로가 필요한 곳(브론즈)은 `filename` 열도 돌려준다.
 4. **쓰기**: 테이블마다 scalar macro 하나, 이름은 `{계층}_{테이블}_path()`. `COPY TO`는 경로만 받으므로 `TO (gold_product_daily_sales_path())`로 쓴다. 브론즈만 `bronze_jaffle_shop_path(tbl)`로 표 이름을 받는다. 수집기가 모든 표에 같은 규칙으로 쓰기 때문이다.
@@ -21,7 +21,7 @@ date: 2026-11-17
 10. **S3 설정**: `_shared/_s3.sql`을 `_shared/_init_s3.sql`로 바꾼다. 값은 환경 변수로만 받는다. `CREATE SECRET` 안에는 `coalesce` 같은 식을 쓸 수 없으므로 기본값은 변수로 먼저 정한다. S3가 더 생기면 `_init_s3_<이름>.sql`을 더하고, 파일마다 비밀 이름, `SCOPE 's3://<버킷>'`, 환경 변수 접두사를 다르게 한다.
 
 ```sql
--- _catalog_silver.sql
+-- _catalog/silver.sql
 CREATE MACRO silver_order_lines_types() AS {'snapshot_at': 'TIMESTAMP', 'bronze_run': 'VARCHAR', 'ordered_at': 'TIMESTAMP', …};
 CREATE MACRO silver_order_lines_path(root := getvariable('root')) AS root || '/silver/jaffle_shop/order_lines';
 CREATE MACRO silver_order_lines(root := getvariable('root')) AS TABLE
@@ -32,8 +32,8 @@ CREATE MACRO silver_order_lines_latest(root := getvariable('root')) AS TABLE
 
 -- 31_gold_product_daily_sales.sql
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog_silver.sql
-.read pipelines/jaffle_shop_sales/_catalog_gold.sql
+.read pipelines/jaffle_shop_sales/_catalog/silver.sql
+.read pipelines/jaffle_shop_sales/_catalog/gold.sql
 
 CREATE TEMP TABLE product_daily_sales AS
 SELECT … FROM silver_order_lines_latest() WHERE order_item_id IS NOT NULL GROUP BY ALL;
@@ -82,7 +82,7 @@ DATA_ROOT=s3://local duckdb -bail -cmd ".read pipelines/_shared/_init_s3.sql" \
 
 | 지금 | dbt-duckdb |
 |---|---|
-| `_catalog_<층>.sql` 하나 | 층 폴더의 yml 하나(`sources.yml`, `_silver__models.yml` 등) |
+| `_catalog/<층>.sql` 하나 | 층 폴더의 yml 하나(`sources.yml`, `_silver__models.yml` 등) |
 | 카탈로그의 위치와 읽기 macro | `sources.yml`의 `external_location` |
 | `<층>_<표>_types()` | yml의 `columns`(`data_type`), 타입 변환은 staging 모델 |
 | 함께 쓰는 규칙 macro, 20번의 실행 고르기 | intermediate 모델 |

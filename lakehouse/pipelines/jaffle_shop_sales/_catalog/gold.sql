@@ -1,4 +1,4 @@
--- 층별 카탈로그: gold. 이름 규칙은 _catalog_source.sql 머리말과 같다. 주문 날짜(dt 폴더)별 파티션이고, dt 는 열이 아니다.
+-- 층별 카탈로그: gold. 이름 규칙은 _catalog/source.sql 머리말과 같다. 주문 날짜(dt 폴더)별 파티션이고, dt 는 열이 아니다.
 
 CREATE MACRO gold_store_daily_sales_types() AS {
   'snapshot_at': 'TIMESTAMP', 'store_id': 'VARCHAR', 'store_name': 'VARCHAR', 'order_date': 'DATE',

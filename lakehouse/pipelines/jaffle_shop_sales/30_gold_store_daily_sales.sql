@@ -2,10 +2,13 @@
 -- 매장 × 날짜를 집계한다. 금액 단위는 센트(원본과 같음).
 -- 합계는 BIGINT로 바꿔 쓴다(sum()은 HUGEINT를 돌려준다).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog_silver.sql
-.read pipelines/jaffle_shop_sales/_catalog_gold.sql
+.read pipelines/jaffle_shop_sales/_catalog/silver.sql
+.read pipelines/jaffle_shop_sales/_catalog/gold.sql
+-- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
+--   silver  읽기  silver_order_lines_latest()    가장 늦은 스냅샷의 주문 품목
+--   gold    쓰기  gold_store_daily_sales_path()  매장 × 주문 날짜(dt)
 
-CREATE TEMP TABLE s AS FROM silver_order_lines_latest();
+CREATE TEMP TABLE s AS FROM silver_order_lines_latest();  -- 아래에서 여러 번 쓰므로 한 번만 읽는다
 
 -- 주문 하나 = 한 행(실버는 품목 단위라 주문 금액이 품목 수만큼 반복된다)
 CREATE TEMP TABLE orders_d AS
@@ -20,6 +23,7 @@ CROSS JOIN (SELECT (getvariable('start_day') + to_days(n::INTEGER))::DATE AS ord
             FROM range(0, getvariable('days')) r(n)) d
 WHERE st.store_opened_at::DATE <= d.order_date;
 
+-- 쓸 결과: 뼈대에 주문을 붙여 매장 × 날짜로 집계한다
 CREATE TEMP TABLE store_daily_sales AS
 SELECT (SELECT max(snapshot_at) FROM s)                AS snapshot_at,
        sp.store_id, sp.store_name, sp.order_date,
