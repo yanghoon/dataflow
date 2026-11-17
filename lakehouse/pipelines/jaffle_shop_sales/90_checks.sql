@@ -1,31 +1,20 @@
 -- 단계 사이 숫자가 맞는지 본다. ok 열이 모두 true 여야 한다.
 .read pipelines/_shared/_init.sql
+.read pipelines/jaffle_shop_sales/_catalog.sql
 
-CREATE TEMP TABLE src_orders AS
-SELECT * FROM read_csv(getvariable('source_root') || '/jaffle_shop/raw_orders.csv', header = true, all_varchar = true);
-CREATE TEMP TABLE src_items AS
-SELECT * FROM read_csv(getvariable('source_root') || '/jaffle_shop/raw_order_items.csv', header = true, all_varchar = true);
-CREATE TEMP TABLE src_stores AS
-SELECT * FROM read_csv(getvariable('source_root') || '/jaffle_shop/raw_stores.csv', header = true, all_varchar = true);
+CREATE TEMP TABLE src_orders   AS FROM source_raw_orders();
+CREATE TEMP TABLE src_items    AS FROM source_raw_order_items();
+CREATE TEMP TABLE src_stores   AS FROM source_raw_stores();
+CREATE TEMP TABLE bronze_files AS FROM bronze_jaffle_shop_files();
+CREATE TEMP TABLE silver       AS FROM silver_order_lines();
+CREATE TEMP TABLE silver_last  AS FROM silver_order_lines_latest();
+CREATE TEMP TABLE gold_store   AS FROM gold_store_daily_sales();
+CREATE TEMP TABLE gold_product AS FROM gold_product_daily_sales();
 
-CREATE TEMP TABLE bronze_files AS
-SELECT file FROM glob(getvariable('root') || '/bronze/jaffle_shop/*/dt=*/hr=*/*.csv');
-
-CREATE TEMP TABLE silver AS
-SELECT * REPLACE (snapshot_at::TIMESTAMP AS snapshot_at)
-FROM read_csv(getvariable('root') || '/silver/jaffle_shop/order_lines/dt=*/hr=*/*.csv',
-              header = true, all_varchar = true, allow_quoted_nulls = false, hive_partitioning = false);
-CREATE TEMP TABLE silver_last AS
-SELECT * FROM silver QUALIFY snapshot_at = max(snapshot_at) OVER ();
 -- 마지막 스냅샷 시각 T 까지의 원본 주문(스냅샷은 T 이전 주문만 담는다)
 SET VARIABLE last_t = (SELECT max(snapshot_at) FROM silver);
 CREATE TEMP TABLE src_orders_last AS
 SELECT * FROM src_orders WHERE ordered_at::TIMESTAMP < getvariable('last_t');
-
-CREATE TEMP TABLE gold_store AS
-SELECT * FROM read_csv(getvariable('root') || '/gold/jaffle_shop/store_daily_sales/dt=*/*.csv', header = true, hive_partitioning = false);
-CREATE TEMP TABLE gold_product AS
-SELECT * FROM read_csv(getvariable('root') || '/gold/jaffle_shop/product_daily_sales/dt=*/*.csv', header = true, hive_partitioning = false);
 
 SELECT check_name, expected, actual, expected = actual AS ok FROM (VALUES
   ('source: 주문이 기간 안에만 있음',

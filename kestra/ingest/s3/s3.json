@@ -1,9 +1,0 @@
-{
-  "identities": [
-    {
-      "name": "dataflow",
-      "credentials": [{ "accessKey": "dataflow", "secretKey": "dataflow-secret" }],
-      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
-    }
-  ]
-}
