@@ -16,13 +16,14 @@ lakehouse/
     silver/jaffle_shop/order_lines/dt=YYYY-MM-DD/hr=HH/data_0.csv
     gold/jaffle_shop/<집계>/dt=YYYY-MM-DD/data_0.csv
   pipelines/
-    _shared/_init.sql                        모든 파이프라인 공통: 환경 변수 → 위치·기간 변수
+    _shared/_init.sql                        모든 파이프라인 공통: 환경 변수 → 위치·기간 변수, 층 catalog(bronze/silver/gold), lake_path
     _shared/_init_s3.sql                     S3 인증. S3에서 돌릴 때만 -cmd 로 붙인다
+    _shared/_catalog/<층>/<스키마>.sql        표 위치·스키마를 <층>.<스키마>.<표>() macro로 선언(ADR lakehouse/0002, 0005)
     jaffle_shop_sales/                       파이프라인 1개 = 폴더 1개. 번호 = 실행 순서
-      _catalog/<층>.sql                      층(source, bronze, silver, gold)마다 표 위치·스키마를 macro로 선언(ADR lakehouse/0002)
+      _sample.sql                            수집을 흉내 내는 시험용 원본(origin, source). 00, 01, 90만 읽는다
 ```
 
-SQL 본문은 `_init.sql`과 필요한 층의 `_catalog/<층>.sql`을 읽은 뒤 표를 이름으로만 읽고 쓴다(`FROM silver_order_lines_latest()`, `COPY … TO (gold_product_daily_sales_path())`). 각 단계는 끝에 쓴 표 이름과 건수만 출력하고, 결과 검증은 `90_checks.sql`이 한다.
+SQL 본문은 `_init.sql`과 읽는 층의 `_shared/_catalog/<층>/<스키마>.sql`을 읽은 뒤 표를 이름으로만 읽고 쓴다(`FROM silver.jaffle_shop.order_lines_latest()`, `COPY … TO (lake_path('gold.jaffle_shop.product_daily_sales'))`). 각 단계는 끝에 쓴 표 이름과 건수만 출력하고, 결과 검증은 `90_checks.sql`이 한다.
 
 한 번에 모두 실행(각 단계 설명은 2~6):
 
@@ -126,7 +127,7 @@ duckdb -bail < $P/20_silver_order_lines.sql
 
 - 조인: 매장 ⟗ 주문(`store_id`) ⟗ 품목(`order_id`)은 full join, 고객·상품은 left join. 모두 같은 실행(`run`) 안에서만 잇는다.
 - 추가 열: `snapshot_at`(스냅샷 예정 시각), `bronze_run`(어느 브론즈 실행에서 왔는지). `dt`, `hr`는 파일 안에 없고 폴더 이름이 된다.
-- CSV는 타입이 없다. 읽을 때는 `all_varchar = true, allow_quoted_nulls = false`로 읽고 타입을 바꾼다. 표마다 열과 타입은 `_catalog/<층>.sql`의 `<층>_<표>_types()` 한 곳에서 정하고, 읽기 macro가 `types=`로 쓴다. 열 이름이 바뀌거나 빠지면 읽기가 실패한다. NULL은 따옴표 없는 빈 값으로 쓴다.
+- CSV는 타입이 없다. 읽을 때는 `all_varchar = true, allow_quoted_nulls = false`로 읽고 타입을 바꾼다. 표마다 열과 타입은 `_shared/_catalog/<층>/<스키마>.sql`의 `<층>.<스키마>.<표>_types()` 한 곳에서 정하고, 읽기 macro가 `types=`로 쓴다. 열 이름이 바뀌거나 빠지면 읽기가 실패한다. NULL은 따옴표 없는 빈 값으로 쓴다.
 
 ## 5. 골드 만들기 (`30_gold_store_daily_sales.sql`, `31_gold_product_daily_sales.sql`)
 

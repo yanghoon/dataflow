@@ -2,9 +2,9 @@
 -- DuckDB가 원본 주소에서 흘려 읽으며 자른다. 원본 전체(약 550MB)를 받지만 디스크에는 잘린 결과만 남는다.
 -- 원본 형식(열 이름, 값 표기)을 바꾸지 않는다. 모든 열을 문자열로 읽고 그대로 쓴다.
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog/source.sql
+.read pipelines/jaffle_shop_sales/_sample.sql
 -- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
---   source  읽기  origin_raw_<표>()       자르기 전 원본 5개 표(stores, orders, order_items, customers, products)
+--   origin  읽기  origin_raw_<표>()       자르기 전 원본 5개 표(stores, orders, order_items, customers, products)
 --   source  쓰기  source_raw_<표>_path()  기간만큼 자른 시험용 원본 5개 표
 INSTALL httpfs;
 LOAD httpfs;

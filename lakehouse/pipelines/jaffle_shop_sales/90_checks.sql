@@ -1,23 +1,23 @@
 -- 단계 사이 숫자가 맞는지 본다. ok 열이 모두 true 여야 한다.
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog/source.sql
-.read pipelines/jaffle_shop_sales/_catalog/bronze.sql
-.read pipelines/jaffle_shop_sales/_catalog/silver.sql
-.read pipelines/jaffle_shop_sales/_catalog/gold.sql
+.read pipelines/jaffle_shop_sales/_sample.sql
+.read pipelines/_shared/_catalog/bronze/jaffle_shop.sql
+.read pipelines/_shared/_catalog/silver/jaffle_shop.sql
+.read pipelines/_shared/_catalog/gold/jaffle_shop.sql
 -- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
 --   source  읽기  source_raw_orders(), source_raw_order_items(), source_raw_stores()  기준이 되는 시험용 원본
---   bronze  읽기  bronze_jaffle_shop_files()                                          브론즈 파일 수
---   silver  읽기  silver_order_lines(), silver_order_lines_latest()                   모든 스냅샷, 가장 늦은 스냅샷
---   gold    읽기  gold_store_daily_sales(), gold_product_daily_sales()                골드 합계
+--   bronze  읽기  bronze.jaffle_shop.files()                                          브론즈 파일 수
+--   silver  읽기  silver.jaffle_shop.order_lines(), silver.jaffle_shop.order_lines_latest()                   모든 스냅샷, 가장 늦은 스냅샷
+--   gold    읽기  gold.jaffle_shop.store_daily_sales(), gold.jaffle_shop.product_daily_sales()                골드 합계
 
 CREATE TEMP TABLE src_orders   AS FROM source_raw_orders();          -- 원본 주문
 CREATE TEMP TABLE src_items    AS FROM source_raw_order_items();     -- 원본 품목
 CREATE TEMP TABLE src_stores   AS FROM source_raw_stores();          -- 원본 매장
-CREATE TEMP TABLE bronze_files AS FROM bronze_jaffle_shop_files();   -- 브론즈 파일 목록
-CREATE TEMP TABLE silver       AS FROM silver_order_lines();         -- 실버 모든 스냅샷
-CREATE TEMP TABLE silver_last  AS FROM silver_order_lines_latest();  -- 실버 가장 늦은 스냅샷
-CREATE TEMP TABLE gold_store   AS FROM gold_store_daily_sales();     -- 골드 매장 × 날짜
-CREATE TEMP TABLE gold_product AS FROM gold_product_daily_sales();   -- 골드 상품 × 날짜
+CREATE TEMP TABLE bronze_files AS FROM bronze.jaffle_shop.files();   -- 브론즈 파일 목록
+CREATE TEMP TABLE silver       AS FROM silver.jaffle_shop.order_lines();         -- 실버 모든 스냅샷
+CREATE TEMP TABLE silver_last  AS FROM silver.jaffle_shop.order_lines_latest();  -- 실버 가장 늦은 스냅샷
+CREATE TEMP TABLE gold_store   AS FROM gold.jaffle_shop.store_daily_sales();     -- 골드 매장 × 날짜
+CREATE TEMP TABLE gold_product AS FROM gold.jaffle_shop.product_daily_sales();   -- 골드 상품 × 날짜
 
 -- 마지막 스냅샷 시각 T 까지의 원본 주문(스냅샷은 T 이전 주문만 담는다)
 SET VARIABLE last_t = (SELECT max(snapshot_at) FROM silver);

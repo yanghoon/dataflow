@@ -7,11 +7,10 @@
 -- T 시점의 원본 상태: 매장은 opened_at <= T, 주문은 ordered_at < T, 품목은 그 주문의 것, 고객·상품은 전체.
 -- 파일 이름 = <실행 시각 T+5분>_sim<YYYYMMDDHH> (ADR-0005 B1·B2와 같은 꼴, sim = 흉내 낸 실행 ID)
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog/source.sql
-.read pipelines/jaffle_shop_sales/_catalog/bronze.sql
+.read pipelines/jaffle_shop_sales/_sample.sql
 -- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
 --   source  읽기  source_raw_<표>()              시험용 원본 5개 표. 아래에서 문자열로 이름을 만들어 부른다
---   bronze  쓰기  bronze_jaffle_shop_path(tbl)  브론즈 표 폴더(<표>/dt=/hr=/<실행>.csv)
+--   bronze  쓰기  lake_path('bronze.jaffle_shop.<표>')  브론즈 표 폴더(<표>/dt=/hr=/<실행>.csv)
 .shell mkdir -p build
 
 -- 스냅샷 하나 = 흉내 낸 수집 실행 하나(시각 T, dt, hr, 실행 이름)
@@ -36,7 +35,7 @@ SELECT * FROM (VALUES
 -- 스냅샷 × 표 = 만들 브론즈 파일 하나(폴더, T 시점 조건)
 CREATE TEMP TABLE plan AS
 SELECT s.*, b.tbl,
-       bronze_jaffle_shop_path(b.tbl) || '/dt=' || s.dt || '/hr=' || s.hr AS dir,
+       lake_path('bronze.jaffle_shop.' || b.tbl) || '/dt=' || s.dt || '/hr=' || s.hr AS dir,
        replace(b.cond, '{T}', strftime(s.t, '%Y-%m-%d %H:%M:%S'))         AS cond_sql
 FROM snaps s CROSS JOIN tbls b;
 

@@ -1,14 +1,13 @@
--- bronze.jaffle_shop 5개 표 → silver.order_lines(dt, hr = 스냅샷)
+-- bronze.jaffle_shop 5개 표 → silver.jaffle_shop.order_lines(dt, hr = 스냅샷)
 -- 스냅샷(dt/hr)마다 표 5개가 모두 있는 실행 중 파일명이 가장 늦은 것 하나를 고르고(ADR-0005 B4),
 -- 그 실행의 매장 ⟗ 주문 ⟗ 품목을 full join 한다. 고객·상품은 붙이기만 한다(left join).
 -- 한 행 = 주문 품목 하나. 주문이 없는 매장도 한 행으로 남는다(주문 열은 NULL).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog/bronze.sql
-.read pipelines/jaffle_shop_sales/_catalog/silver.sql
+.read pipelines/_shared/_catalog/bronze/jaffle_shop.sql
 -- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
---   bronze  읽기  bronze_jaffle_shop_files()  브론즈 파일 목록(실행 고르기)
---   bronze  읽기  bronze_<표>()                5개 표(stores, customers, products, orders, order_items)
---   silver  쓰기  silver_order_lines_path()   주문 품목 한 행, 스냅샷(dt, hr)별
+--   bronze  읽기  bronze.jaffle_shop.files()  브론즈 파일 목록(실행 고르기)
+--   bronze  읽기  bronze.jaffle_shop.<표>()                5개 표(stores, customers, products, orders, order_items)
+--   silver  쓰기  lake_path('silver.jaffle_shop.order_lines')   주문 품목 한 행, 스냅샷(dt, hr)별
 
 -- 브론즈 파일 하나 = 한 행. 경로에서 표, dt, hr, 실행 이름을 뽑는다
 CREATE TEMP TABLE files AS
@@ -17,7 +16,7 @@ SELECT file,
        regexp_extract(file, '/dt=([0-9]{4}-[0-9]{2}-[0-9]{2})/', 1)                   AS dt,
        regexp_extract(file, '/hr=([0-9]{2})/', 1)                                     AS hr,
        regexp_extract(file, '/([0-9]{8}T[0-9]{6}Z_[0-9A-Za-z]+)\.csv$', 1)            AS run
-FROM bronze_jaffle_shop_files();
+FROM bronze.jaffle_shop.files();
 
 -- 스냅샷(dt, hr)마다 고른 실행 하나
 CREATE TEMP TABLE picked AS
@@ -29,15 +28,15 @@ QUALIFY row_number() OVER (PARTITION BY dt, hr ORDER BY run DESC) = 1;
 
 -- 표마다 고른 실행의 행만 남긴다(run 열을 붙인다). 브론즈는 모든 열이 문자열이고, 아래 SELECT 에서 타입을 바꾼다.
 CREATE TEMP TABLE stores AS  -- 고른 실행의 매장
-SELECT p.run, b.* EXCLUDE (filename) FROM bronze_stores() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
+SELECT p.run, b.* EXCLUDE (filename) FROM bronze.jaffle_shop.stores() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
 CREATE TEMP TABLE customers AS  -- 고른 실행의 고객
-SELECT p.run, b.* EXCLUDE (filename) FROM bronze_customers() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
+SELECT p.run, b.* EXCLUDE (filename) FROM bronze.jaffle_shop.customers() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
 CREATE TEMP TABLE products AS  -- 고른 실행의 상품
-SELECT p.run, b.* EXCLUDE (filename) FROM bronze_products() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
+SELECT p.run, b.* EXCLUDE (filename) FROM bronze.jaffle_shop.products() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
 CREATE TEMP TABLE orders AS  -- 고른 실행의 주문
-SELECT p.run, b.* EXCLUDE (filename) FROM bronze_orders() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
+SELECT p.run, b.* EXCLUDE (filename) FROM bronze.jaffle_shop.orders() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
 CREATE TEMP TABLE order_items AS  -- 고른 실행의 주문 품목
-SELECT p.run, b.* EXCLUDE (filename) FROM bronze_order_items() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
+SELECT p.run, b.* EXCLUDE (filename) FROM bronze.jaffle_shop.order_items() b JOIN picked p ON b.filename LIKE '%/' || p.run || '.csv';
 
 -- 같은 실행 안에서 매장 ⟗ 주문 ⟗ 품목, 고객·상품을 붙이고 타입을 정한다
 CREATE TEMP TABLE joined AS
@@ -72,7 +71,7 @@ SELECT strptime(p.dt || ' ' || p.hr, '%Y-%m-%d %H') AS snapshot_at,   -- 스냅�
        p.dt, p.hr                                                     -- 파티션 열(파일 안에는 없고 폴더 이름이 된다)
 FROM joined j JOIN picked p USING (run);
 
-COPY order_lines TO (silver_order_lines_path())
+COPY order_lines TO (lake_path('silver.jaffle_shop.order_lines'))
   (FORMAT csv, HEADER true, PARTITION_BY (dt, hr), OVERWRITE_OR_IGNORE true);
 
-SELECT 'silver.order_lines' AS written, count(*) AS rows, count(DISTINCT (dt, hr)) AS partitions FROM order_lines;
+SELECT 'silver.jaffle_shop.order_lines' AS written, count(*) AS rows, count(DISTINCT (dt, hr)) AS partitions FROM order_lines;

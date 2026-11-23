@@ -1,14 +1,13 @@
--- silver.order_lines(가장 늦은 스냅샷) → gold.store_daily_sales(dt = 주문 날짜)
+-- silver.jaffle_shop.order_lines(가장 늦은 스냅샷) → gold.jaffle_shop.store_daily_sales(dt = 주문 날짜)
 -- 매장 × 날짜를 집계한다. 금액 단위는 센트(원본과 같음).
 -- 합계는 BIGINT로 바꿔 쓴다(sum()은 HUGEINT를 돌려준다).
 .read pipelines/_shared/_init.sql
-.read pipelines/jaffle_shop_sales/_catalog/silver.sql
-.read pipelines/jaffle_shop_sales/_catalog/gold.sql
+.read pipelines/_shared/_catalog/silver/jaffle_shop.sql
 -- 참조 테이블(층 · 읽기/쓰기 · 이름 · 쓰임)
---   silver  읽기  silver_order_lines_latest()    가장 늦은 스냅샷의 주문 품목
---   gold    쓰기  gold_store_daily_sales_path()  매장 × 주문 날짜(dt)
+--   silver  읽기  silver.jaffle_shop.order_lines_latest()    가장 늦은 스냅샷의 주문 품목
+--   gold    쓰기  lake_path('gold.jaffle_shop.store_daily_sales')  매장 × 주문 날짜(dt)
 
-CREATE TEMP TABLE s AS FROM silver_order_lines_latest();  -- 아래에서 여러 번 쓰므로 한 번만 읽는다
+CREATE TEMP TABLE s AS FROM silver.jaffle_shop.order_lines_latest();  -- 아래에서 여러 번 쓰므로 한 번만 읽는다
 
 -- 주문 하나 = 한 행(실버는 품목 단위라 주문 금액이 품목 수만큼 반복된다)
 CREATE TEMP TABLE orders_d AS
@@ -36,7 +35,7 @@ FROM spine sp
 LEFT JOIN orders_d o ON o.store_id = sp.store_id AND o.order_date = sp.order_date
 GROUP BY sp.store_id, sp.store_name, sp.order_date;
 
-COPY store_daily_sales TO (gold_store_daily_sales_path())
+COPY store_daily_sales TO (lake_path('gold.jaffle_shop.store_daily_sales'))
   (FORMAT csv, HEADER true, PARTITION_BY (dt), OVERWRITE_OR_IGNORE true);
 
-SELECT 'gold.store_daily_sales' AS written, count(*) AS rows, count(DISTINCT dt) AS partitions FROM store_daily_sales;
+SELECT 'gold.jaffle_shop.store_daily_sales' AS written, count(*) AS rows, count(DISTINCT dt) AS partitions FROM store_daily_sales;
