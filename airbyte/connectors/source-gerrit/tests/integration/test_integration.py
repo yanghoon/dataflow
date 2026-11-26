@@ -39,8 +39,7 @@ def test_live_gerrit_read_accounts_stream():
     }
     source = SourceGerrit()
     streams = source.streams(config)
-    assert len(streams) == 1
-    accounts_stream = streams[0]
+    accounts_stream = next(s for s in streams if s.name == "accounts")
 
     # Read records from the first slice
     records = list(accounts_stream.read_records(sync_mode=None))

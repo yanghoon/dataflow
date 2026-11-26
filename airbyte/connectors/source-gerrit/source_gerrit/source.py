@@ -61,6 +61,15 @@ def load_gerrit_json(response: requests.Response):
 
 
 class GerritStream(HttpStream):
+    """Shared Gerrit list stream: auth, XSSI strip, `n`/`S` offset paging.
+
+    A subclass declares `path`, `fixed_params`, `primary_key`, `map_response`
+    and `more_marker`. The schema is `schemas/<name>.json`.
+    """
+
+    map_response: bool = False  # True: response is a map keyed by name; key moves to `name`
+    more_marker: str = ""       # e.g. "_more_accounts": set on the last record when more pages exist
+
     def __init__(self, config: Mapping[str, Any], **kwargs):
         super().__init__(
             authenticator=BasicHttpAuthenticator(
@@ -68,91 +77,78 @@ class GerritStream(HttpStream):
             )
         )
         self._url_base = config["gerrit_url"].rstrip("/") + "/"
+        self.page_size = int(config.get("page_size", 100))
+        self.debug_records = bool(config.get("debug_records", False))
 
     @property
     def url_base(self) -> str:
         return self._url_base
 
-    def get_json_schema(self) -> Mapping[str, Any]:
-        return {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "additionalProperties": True,
-            "properties": {
-                "_account_id":   {"type": ["integer", "null"]},
-                "username":      {"type": ["string", "null"]},
-                "name":          {"type": ["string", "null"]},
-                "display_name":  {"type": ["string", "null"]},
-                "email":         {"type": ["string", "null"]},
-                "secondary_emails": {
-                    "type": ["array", "null"],
-                    "items": {"type": "string"},
-                },
-                "registered_on": {"type": ["string", "null"]},
-                "inactive":      {"type": ["boolean", "null"]},
-                "tags": {
-                    "type": ["array", "null"],
-                    "items": {"type": "string"},
-                },
-                "status":        {"type": ["string", "null"]},
-            },
-        }
-
-    def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
-        return None
-
-
-class Accounts(GerritStream):
-    primary_key = "_account_id"
-
-    def __init__(self, config: Mapping[str, Any], **kwargs):
-        super().__init__(config, **kwargs)
-        self.page_size = int(config.get("page_size", 100))
-        self.debug_records = bool(config.get("debug_records", False))
-
-    def path(self, **kwargs) -> str:
-        return "a/accounts/"
+    def fixed_params(self) -> Mapping[str, Any]:
+        return {}
 
     def request_params(self, stream_state=None, stream_slice=None, next_page_token=None):
-        params = {"q": "is:active OR is:inactive", "o": "DETAILS", "n": self.page_size}
+        params = {**self.fixed_params(), "n": self.page_size}
         if next_page_token:
             params.update(next_page_token)
         return params
 
-    def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
+    def _page_records(self, response: requests.Response) -> list:
         data = load_gerrit_json(response)
-        if isinstance(data, list) and data:
-            has_more = bool(data[-1].get("_more_accounts"))
-            if has_more:
-                url = response.request.url if response.request else ""
-                qs = parse_qs(urlparse(url).query)
-                start = int(qs.get("S", ["0"])[0])
-                next_start = start + len(data)
-                logger.info(
-                    f"[PAGE] _more_accounts=True detected: batch_count={len(data)}, "
-                    f"advancing offset from S={start} to S={next_start}"
-                )
-                return {"S": next_start}
-            else:
-                logger.info(f"[PAGE] Last page reached (_more_accounts=False). Total on page: {len(data)}")
-                return None
-        logger.info("[PAGE] Empty or non-list response; ending pagination.")
-        return None
+        if self.map_response:
+            if isinstance(data, dict) and all(isinstance(v, dict) for v in data.values()):
+                return [{"name": key, **value} for key, value in data.items()]
+        elif isinstance(data, list):
+            return data
+        logger.warning(f"[PARSE] {self.name}: unexpected response {type(data).__name__}: {data!r}"[:500])
+        return []
+
+    def is_last_page(self, records: list) -> bool:
+        return not records or not records[-1].get(self.more_marker)
+
+    def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
+        records = self._page_records(response)
+        if self.is_last_page(records):
+            logger.info(f"[PAGE] {self.name}: last page reached. Total on page: {len(records)}")
+            return None
+        url = response.request.url if response.request else ""
+        start = int(parse_qs(urlparse(url).query).get("S", ["0"])[0])
+        next_start = start + len(records)
+        logger.info(
+            f"[PAGE] {self.name}: {self.more_marker}=True, batch_count={len(records)}, "
+            f"advancing offset from S={start} to S={next_start}"
+        )
+        return {"S": next_start}
 
     def parse_response(self, response: requests.Response, **kwargs) -> Iterable[Mapping]:
-        records = load_gerrit_json(response)
-        if isinstance(records, list):
-            raw_count = len(records)
-            yielded_count = 0
-            for rec in records:
-                rec.pop("_more_accounts", None)
-                if self.debug_records:
-                    logger.info(f"[RECORD #{yielded_count + 1}] {json.dumps(rec, ensure_ascii=False)}")
-                yielded_count += 1
-                yield rec
-            logger.info(f"[PARSE] Extracted and yielded {yielded_count}/{raw_count} clean account records")
-        else:
-            logger.warning(f"[PARSE] Expected list of records but got {type(records).__name__}: {records!r}")
+        records = self._page_records(response)
+        for i, rec in enumerate(records, start=1):
+            rec.pop(self.more_marker, None)
+            if self.debug_records:
+                logger.info(f"[RECORD #{i}] {json.dumps(rec, ensure_ascii=False)}")
+            yield rec
+        logger.info(f"[PARSE] {self.name}: yielded {len(records)} records")
+
+
+class Accounts(GerritStream):
+    primary_key = "_account_id"
+    more_marker = "_more_accounts"
+
+    def path(self, **kwargs) -> str:
+        return "a/accounts/"
+
+    def fixed_params(self) -> Mapping[str, Any]:
+        return {"q": "is:active OR is:inactive", "o": "DETAILS"}
+
+
+class Projects(GerritStream):
+    primary_key = "id"
+    map_response = True
+    more_marker = "_more_projects"
+
+    def path(self, **kwargs) -> str:
+        # `d` (description) and `all` (include HIDDEN) are valueless options, so they live in the path.
+        return "a/projects/?d&all"
 
 
 class SourceGerrit(AbstractSource):
@@ -170,4 +166,4 @@ class SourceGerrit(AbstractSource):
             return False, str(e)
 
     def streams(self, config: Mapping[str, Any]):
-        return [Accounts(config)]
+        return [Accounts(config), Projects(config)]

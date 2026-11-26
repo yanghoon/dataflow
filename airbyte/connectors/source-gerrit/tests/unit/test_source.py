@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 import requests
-from source_gerrit.source import Accounts, SourceGerrit
+from source_gerrit.source import Accounts, Projects, SourceGerrit
 
 
 def test_source_streams():
@@ -11,8 +11,7 @@ def test_source_streams():
         "password": "secret_password",
     }
     streams = source.streams(config)
-    assert len(streams) == 1
-    assert isinstance(streams[0], Accounts)
+    assert [type(s) for s in streams] == [Accounts, Projects]
 
 
 def test_source_spec():

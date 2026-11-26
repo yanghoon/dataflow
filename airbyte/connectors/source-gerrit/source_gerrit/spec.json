@@ -27,7 +27,7 @@
         "type": "integer",
         "order": 3,
         "title": "Page Size",
-        "description": "Accounts per page for pagination (default: 100, max: 500)",
+        "description": "Records per page for every stream (default: 100, max: 500)",
         "default": 100
       },
       "debug_records": {

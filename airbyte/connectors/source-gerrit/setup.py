@@ -9,5 +9,5 @@ setup(
         "airbyte-cdk",
         "requests",
     ],
-    package_data={"": ["spec.json"]},
+    package_data={"": ["spec.json", "schemas/*.json"]},
 )

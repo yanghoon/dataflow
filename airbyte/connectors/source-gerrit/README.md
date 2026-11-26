@@ -1,17 +1,18 @@
 # Gerrit Airbyte Source 커넥터
 
-Gerrit Code Review(v3.8+)의 계정(**Gerrit Account**) 데이터를 Airbyte로 수집하기 위한 커스텀 소스 커넥터입니다.  
+Gerrit Code Review(v3.8+)의 **Gerrit Account**와 **Gerrit Project** 데이터를 Airbyte로 수집하기 위한 커스텀 소스 커넥터입니다.  
 Gerrit 특유의 보안 접두어(XSSI 매직 스트링 `)]}'\n`)과 오프셋 페이지네이션을 안전하게 처리합니다.
 
 ---
 
 ## 1. 개요
 
-* **대상 시스템**: Gerrit v3.8+ REST API (`/a/accounts/`)
-* **수집 스트림**: `Accounts` (기본 키: `_account_id`)
+* **대상 시스템**: Gerrit v3.8+ REST API (`/a/accounts/`, `/a/projects/?d&all`)
+* **수집 스트림**: `accounts`(기본 키: `_account_id`), `projects`(기본 키: `id`. 맵 키를 `name`으로 옮긴다)
+* **스트림 추가**: `GerritStream`을 상속해 `path`, `fixed_params`, `primary_key`, `map_response`, `more_marker`를 선언하고 `source_gerrit/schemas/<stream>.json`을 둔다. 끝 판정이 다르면 `is_last_page()`를 재정의한다.
 * **핵심 기능**:
   - XSSI 매직 스트링 자동 제거 및 파싱 에러 방어
-  - `_more_accounts` 플래그 및 `S` 오프셋 기반 자동 페이징
+  - `_more_accounts`·`_more_projects` 플래그 및 `S` 오프셋 기반 자동 페이징
   - 대상 스토리지(S3 등) Parquet/Avro 직렬화 크래시 방지 스키마 적용
   - 민감 정보(Authorization) 마스킹 처리된 상세 HTTP 요청/응답 및 레코드 건수 디버깅 로그 제공
 
