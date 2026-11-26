@@ -23,6 +23,7 @@ lakehouse/
     ui.sh                             .env → INIT_FILES → _catalog/*/*.sql → DuckDB UI 서버(http://localhost:4213)
     _init/base.sql                    공통 초기화: 환경 변수 → 변수, lake_csv·lake_path·sync_epoch macro, ATTACH bronze/silver/gold
     _init/s3.sql                      S3 인증. S3에서 돌릴 때만 INIT_FILES 에 넣는다
+    _init/pg.sql                      gold 를 Postgres 로 붙인다(PG_* 환경 변수). Postgres 에 쓸 때만 INIT_FILES 에 넣는다
     _catalog/<system_type>/<tier>.sql 표 선언. 예: _catalog/jaffle_shop/silver.sql
     <system_type>/                    변환 SQL 파일만 둔다. 하위 폴더는 _sample/ 하나만 둔다
       <번호>_<tier>_<결과>.sql         번호 = 실행 순서. 20번대 silver, 30번대 gold, 90 검증
