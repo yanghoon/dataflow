@@ -35,6 +35,6 @@ for i in "${inits[@]}"; do
 done
 
 for f in "${files[@]}"; do
-  echo "== ${f#"$PWD"/}"
+  printf '\n== %s\n' "${f#"$PWD"/}"   # 앞 단계 출력이 줄바꿈 없이 끝나도 머리줄이 새 줄에서 시작하게 한다
   duckdb -bail "${init_args[@]}" < "$f"
 done
