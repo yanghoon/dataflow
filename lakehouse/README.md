@@ -15,29 +15,25 @@ lakehouse/
     bronze/jaffle_shop/<표>/dt=YYYY-MM-DD/hr=HH/<실행 시각>_<실행 ID>.csv
     silver/jaffle_shop/order_lines/dt=YYYY-MM-DD/hr=HH/data_0.csv
     gold/jaffle_shop/<집계>/dt=YYYY-MM-DD/data_0.csv
-  pipelines/
-    _shared/_init.sql                        모든 파이프라인 공통: 환경 변수 → 위치·기간 변수, 층 catalog(bronze/silver/gold), lake_path
-    _shared/_init_s3.sql                     S3 인증. S3에서 돌릴 때만 -cmd 로 붙인다
-    _shared/_catalog/<층>/<스키마>.sql        표 위치·스키마를 <층>.<스키마>.<표>() macro로 선언(ADR lakehouse/0002, 0005)
-    jaffle_shop_sales/                       파이프라인 1개 = 폴더 1개. 번호 = 실행 순서
-      _sample.sql                            수집을 흉내 내는 시험용 원본(origin, source). 00, 01, 90만 읽는다
+  pipeline/                                 코드(구조와 규칙: AGENTS.md)
+    .env.example                            환경 변수 목록. cp 로 .env 를 만든다
+    run.sh  ui.sh                           실행, 조회용 DuckDB UI
+    _init/base.sql  _init/s3.sql            공통 초기화, S3 인증
+    _catalog/jaffle_shop/<층>.sql           표 위치·스키마를 <층>.jaffle_shop.<표>() macro로 선언(ADR lakehouse/0002, 0005)
+    jaffle_shop/                            변환 SQL. 번호 = 실행 순서
+      _sample/                              로컬 시험용: 원본 정의(_sample.sql), 00 소스, 01 브론즈, 90 원본 비교 검사
+    employees/                              두 번째 system type(MySQL 원천). pipeline/employees/_sample/README.md
 ```
 
-SQL 본문은 `_init.sql`과 읽는 층의 `_shared/_catalog/<층>/<스키마>.sql`을 읽은 뒤 표를 이름으로만 읽고 쓴다(`FROM silver.jaffle_shop.order_lines_latest()`, `COPY … TO (lake_path('gold.jaffle_shop.product_daily_sales'))`). 각 단계는 끝에 쓴 표 이름과 건수만 출력하고, 결과 검증은 `90_checks.sql`이 한다.
+SQL 본문은 `pipeline/_init/base.sql`과 읽는 층의 카탈로그를 읽은 뒤 표를 이름으로만 읽고 쓴다(`FROM silver.jaffle_shop.order_lines_latest()`, `COPY … TO (lake_path('gold.jaffle_shop.product_daily_sales'))`). 각 단계는 끝에 쓴 표 이름과 건수만 출력하고, 결과 검증은 `90_checks.sql`과 `_sample/90_checks.sql`이 한다.
 
 한 번에 모두 실행(각 단계 설명은 2~6):
 
 ```bash
 cd lakehouse
-P=pipelines/jaffle_shop_sales
-mkdir -p source/jaffle_shop
-duckdb -bail < $P/00_sample_source.sql
-duckdb -bail < $P/01_sample_bronze.sql
-mkdir -p s3-local/silver/jaffle_shop s3-local/gold/jaffle_shop
-duckdb -bail < $P/20_silver_order_lines.sql
-duckdb -bail < $P/30_gold_store_daily_sales.sql
-duckdb -bail < $P/31_gold_product_daily_sales.sql
-duckdb -bail < $P/90_checks.sql
+P=pipeline/jaffle_shop
+mkdir -p source/jaffle_shop s3-local/silver/jaffle_shop s3-local/gold/jaffle_shop
+pipeline/run.sh $P/_sample/0*.sql $P/*.sql $P/_sample/9*.sql
 ```
 
 ## 1. 준비
@@ -46,10 +42,13 @@ duckdb -bail < $P/90_checks.sql
 
 ```bash
 cd lakehouse
-P=pipelines/jaffle_shop_sales
+cp pipeline/.env.example pipeline/.env    # 처음 한 번. 값은 pipeline/.env 에서만 바꾼다(Git 제외)
+P=pipeline/jaffle_shop
 ```
 
-## 2. 소스 만들기 (`00_sample_source.sql`)
+`pipeline/run.sh`는 `pipeline/.env`를 읽고 `INIT_FILES`(기본 `pipeline/_init/base.sql`)를 먼저 읽은 뒤, 받은 SQL 파일을 받은 순서대로 실행한다.
+
+## 2. 소스 만들기 (`_sample/00_source.sql`)
 
 2~3은 샘플 만들기(00번대)다. 로컬 전용이고, 한 번 만들면 계속 쓴다.
 
@@ -57,7 +56,7 @@ P=pipelines/jaffle_shop_sales
 # source: 원본 주소에서 DuckDB가 바로 읽어 3일치만 자르기(기본 2019-09-12 ~ 2019-09-14) → source/jaffle_shop/*.csv
 # 원본 전체(약 550MB)를 흘려 받고, 디스크에는 잘린 결과(약 1MB)만 남는다
 mkdir -p source/jaffle_shop
-duckdb -bail < $P/00_sample_source.sql
+pipeline/run.sh $P/_sample/00_source.sql
 ```
 
 만들어지는 파일:
@@ -87,19 +86,19 @@ duckdb -bail < $P/00_sample_source.sql
 - DuckDB(httpfs)가 원본 주소의 CSV를 흘려 읽으며 위 규칙대로 자른다. 원본은 날짜순이 아니라(주문은 고객 순, 품목은 날짜 열이 없음) 일부만 받을 수 없다.
 - `SOURCE_URL`로 원본 위치를 바꿀 수 있다. 미리 받아 둔 폴더를 주면 그 파일을 읽는다.
 
-## 3. 브론즈 만들기 (`01_sample_bronze.sql`)
+## 3. 브론즈 만들기 (`_sample/01_bronze.sql`)
 
 ```bash
 # bronze: 3시간마다 전체 수집한 것처럼 만든다(24개 스냅샷 × 표 5개 = 120개 CSV)
 # 나중에는 이 단계 대신 Airbyte 등 실제 수집이 같은 규칙으로 bronze 를 쓴다
-duckdb -bail < $P/01_sample_bronze.sql
+pipeline/run.sh $P/_sample/01_bronze.sql
 ```
 
 만들어지는 파일:
 
 - `s3-local/bronze/jaffle_shop/<표>/dt=*/hr=*/*.csv`: 로컬 샘플. 스냅샷 24개(00, 03, …, 21시) × 표 5개. 첫날 이른 스냅샷의 주문·품목 파일은 헤더만 있다(아직 주문이 없음)
 
-규칙: 지금은 로컬 전용 샘플(`01_sample_bronze.sql`), 나중에는 실제 수집(Airbyte 등)이 쓴다. `dt`/`hr` = 수집 예정 시각(UTC). 파일 이름 = `<실행 시각>_<실행 ID>`라 다시 돌려도 덮어쓰지 않는다. 원본 형식 그대로(ADR-0005 B1~B7).
+규칙: 지금은 로컬 전용 샘플(`_sample/01_bronze.sql`), 나중에는 실제 수집(Airbyte 등)이 쓴다. `dt`/`hr` = 수집 예정 시각(UTC). 파일 이름 = `<실행 시각>_<실행 ID>`라 다시 돌려도 덮어쓰지 않는다. 원본 형식 그대로(ADR-0005 B1~B7).
 
 처리:
 
@@ -114,7 +113,7 @@ duckdb -bail < $P/01_sample_bronze.sql
 # silver: 스냅샷마다 full join → CSV
 # 로컬 디스크에서는 DuckDB가 상위 폴더를 만들지 않으므로 먼저 만든다(S3에서는 필요 없음)
 mkdir -p s3-local/silver/jaffle_shop s3-local/gold/jaffle_shop
-duckdb -bail < $P/20_silver_order_lines.sql
+pipeline/run.sh $P/20_silver_order_lines.sql
 ```
 
 만들어지는 파일:
@@ -127,14 +126,13 @@ duckdb -bail < $P/20_silver_order_lines.sql
 
 - 조인: 매장 ⟗ 주문(`store_id`) ⟗ 품목(`order_id`)은 full join, 고객·상품은 left join. 모두 같은 실행(`run`) 안에서만 잇는다.
 - 추가 열: `snapshot_at`(스냅샷 예정 시각), `bronze_run`(어느 브론즈 실행에서 왔는지). `dt`, `hr`는 파일 안에 없고 폴더 이름이 된다.
-- CSV는 타입이 없다. 읽을 때는 `all_varchar = true, allow_quoted_nulls = false`로 읽고 타입을 바꾼다. 표마다 열과 타입은 `_shared/_catalog/<층>/<스키마>.sql`의 `<층>.<스키마>.<표>_types()` 한 곳에서 정하고, 읽기 macro가 `types=`로 쓴다. 열 이름이 바뀌거나 빠지면 읽기가 실패한다. NULL은 따옴표 없는 빈 값으로 쓴다.
+- CSV는 타입이 없다. 읽을 때는 `all_varchar = true, allow_quoted_nulls = false`로 읽고 타입을 바꾼다. 표마다 열과 타입은 `pipeline/_catalog/<system_type>/<층>.sql`의 `<층>.<system_type>.<표>_types()` 한 곳에서 정하고, 읽기 macro가 `types=`로 쓴다. 열 이름이 바뀌거나 빠지면 읽기가 실패한다. NULL은 따옴표 없는 빈 값으로 쓴다.
 
 ## 5. 골드 만들기 (`30_gold_store_daily_sales.sql`, `31_gold_product_daily_sales.sql`)
 
 ```bash
 # gold: 매장별, 상품별 일 집계 → CSV
-duckdb -bail < $P/30_gold_store_daily_sales.sql
-duckdb -bail < $P/31_gold_product_daily_sales.sql
+pipeline/run.sh $P/3*.sql
 ```
 
 만들어지는 파일:
@@ -150,14 +148,15 @@ duckdb -bail < $P/31_gold_product_daily_sales.sql
 - `store_daily_sales`: 매장 × 날짜 뼈대(그날 열려 있던 매장)에 주문을 붙인다.
 - `product_daily_sales`: 품목 행을 상품 × 날짜로 센다.
 
-## 6. 검증하기 (`90_checks.sql`)
+## 6. 검증하기 (`90_checks.sql`, `_sample/90_checks.sql`)
 
 ```bash
-# 검증: ok 열이 모두 true
-duckdb -bail < $P/90_checks.sql
+# 검증: 두 파일 모두 ok 열이 모두 true
+pipeline/run.sh $P/90_checks.sql $P/_sample/90_checks.sql
 ```
 
-기간, 파일 수, 스냅샷 수, 실버와 원본의 건수, full join 행, 골드 합계와 원본 합계를 비교한다.
+- `90_checks.sql`: 시험용 원본 없이 도는 tier 사이 검사(골드 판매 수 = 실버 품목 행). 정기 실행에 들어간다.
+- `_sample/90_checks.sql`: 시험용 원본과 비교한다. 기간, 파일 수, 스냅샷 수, 실버와 원본의 건수, full join 행, 골드 매출과 원본 합계.
 
 기본값(2019-09-12부터 3일, 3시간 간격)으로 만든 실측(2026-11-16):
 
@@ -180,27 +179,28 @@ duckdb -c "SELECT * FROM read_csv('s3-local/gold/jaffle_shop/store_daily_sales/d
 
 ## 8. 다시 만들기, 값 바꾸기
 
-다른 기간이나 간격으로 만들려면 2부터 `START_DAY=2020-06-01 DAYS=2 BRONZE_EVERY_HOURS=6`처럼 같은 값을 모든 단계에 준다. 다시 만들 때는 `rm -rf source/jaffle_shop/* s3-local build` 뒤 2부터 실행한다. 같은 기간이면 원본을 다시 받을 필요 없이 3부터 실행한다.
+다른 기간이나 간격으로 만들려면 `pipeline/.env`의 `START_DAY`, `DAYS`, `BRONZE_EVERY_HOURS`를 바꾸고 2부터 실행한다. 모든 단계가 같은 `.env`를 읽는다. 다시 만들 때는 `rm -rf source/jaffle_shop/* s3-local build` 뒤 2부터 실행한다. 같은 기간이면 원본을 다시 받을 필요 없이 3부터 실행한다.
 
-| 환경 변수 | 기본값 | 뜻 |
-|---|---|---|
-| `SOURCE_URL` | `https://dbt-tutorial-public.s3.us-west-2.amazonaws.com/long_term_dataset` | 자르기 전 원본 위치(`00_sample_source.sql`만 씀). 로컬 폴더도 된다 |
-| `SOURCE_ROOT` | `source` | 시험용 원본 폴더 |
-| `DATA_ROOT` | `s3-local` | 브론즈·실버·골드의 최상위. 서버는 `s3://...` |
-| `START_DAY` | `2019-09-12` | 자를 기간의 첫날 |
-| `DAYS` | `3` | 기간 일수 |
-| `BRONZE_EVERY_HOURS` | `3` | 브론즈 수집 간격(24의 약수). 스냅샷 수 = 24 / 간격 × DAYS |
+환경 변수 목록, 기본값, 뜻은 `pipeline/.env.example`에 있다. `BRONZE_EVERY_HOURS`는 24의 약수로 준다. 스냅샷 수 = 24 / 간격 × `DAYS`다.
 
 ## 9. 서버(S3)에서 돌리기
 
-- 서버에서는 `DATA_ROOT=s3://local`(또는 `s3://<버킷>/<접두사>`)로 같은 SQL을 실행하고, S3 인증을 먼저 읽힌다.
+- 서버에서는 `DATA_ROOT=s3://local`(또는 `s3://<버킷>/<접두사>`)로 같은 SQL을 실행하고, S3 인증(`pipeline/_init/s3.sql`)을 먼저 읽힌다. `pipeline/.env`에 아래 값을 쓴다. 값을 명령줄이나 SQL에 적지 않는다.
 
 ```bash
-set -a; . ./.env; set +a     # .env 는 Git 제외. 값을 명령줄이나 SQL에 적지 않는다
-DATA_ROOT=s3://local duckdb -bail -cmd ".read pipelines/_shared/_init_s3.sql" < pipelines/jaffle_shop_sales/20_silver_order_lines.sql
+# pipeline/.env
+DATA_ROOT=s3://local
+INIT_FILES="pipeline/_init/base.sql pipeline/_init/s3.sql"
+S3_ENDPOINT=...
+S3_ACCESS_KEY_ID=...
+S3_SECRET_KEY_ID=...
 ```
 
-- `.env`에 넣는 값: `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_KEY_ID`, (선택) `S3_REGION`, `S3_URL_STYLE`, `S3_USE_SSL`. 인증은 `TEMPORARY SECRET`이라 프로세스가 끝나면 사라진다. 에어갭에서는 httpfs 확장을 미리 넣어 둔다.
+```bash
+pipeline/run.sh pipeline/jaffle_shop/*.sql
+```
+
+- 인증은 `TEMPORARY SECRET`이라 프로세스가 끝나면 사라진다. 에어갭에서는 httpfs 확장을 미리 넣어 둔다.
 - 로컬 S3 서버에서 버킷 `local`이 `s3-local/` 폴더를 가리키게 하면(예: versitygw posix의 루트 아래 `local`로 `s3-local/`을 마운트), Kestra와 Airbyte(S3 목적지)가 `s3://local`에 쓴 파일이 이 폴더에 그대로 보이고 로컬 SQL도 그대로 읽는다. 아직 연결하지 않았다.
 
 ## 부록 A. 원본 열
@@ -217,7 +217,7 @@ ID는 모두 UUID 문자열, 상품은 `JAF-001` 같은 SKU다. 금액(`subtotal
 
 ## 부록 B. 이름 규칙
 
-파이프라인 폴더 안 파일 이름: `<번호>_<층>_<결과 이름>.sql`. 번호 00번대 로컬 샘플(00 소스, 01 브론즈), 10번대 실제 수집 자리(비워 둠), 20 실버, 30번대 골드, 90 검증. 샘플 파일은 `<번호>_sample_<층>.sql`.
+`pipeline/<system_type>/` 안 파일 이름: `<번호>_<층>_<결과 이름>.sql`. 번호 20번대 실버, 30번대 골드, 90 검증. 로컬 시험 파일은 `_sample/` 안에 두고 `<번호>_<결과>.sql`로 쓴다(00 소스, 01 브론즈, 90 원본 비교 검사). 자세한 규칙은 `AGENTS.md`.
 
 ## 부록 C. 출처
 

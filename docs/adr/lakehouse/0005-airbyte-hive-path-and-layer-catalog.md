@@ -135,3 +135,68 @@ COPY (
 
 - 실패한 sync를 걸러야 할 때: Airbyte job 상태나 성공 표시 파일로 거른다.
 - 인스턴스가 늘거나 이력 조회가 잦아질 때: DuckLake(층마다 catalog)로 옮긴다.
+
+## 부록 A. dbt 전환 방향
+
+이 부록은 방향만 정한다. 전환 시점은 정하지 않는다. 전환할 때 새 ADR을 쓴다.
+
+### 지금 지킬 규칙
+
+이 규칙은 전환할 때 본문 로직을 그대로 옮기기 위한 것이다.
+
+- 본문 맨 앞에 `.read`를, 맨 끝에 `COPY`와 통계 `SELECT`를 둔다. 전환할 때 이 줄들만 지운다.
+- 환경 값(`getenv()`)은 `_init.sql`, 파이프라인 `_init.sql`, `origin.sql`에서만 읽는다. `getenv()`는 DuckDB CLI에서만 동작하고 dbt에는 없다.
+- 본문은 표를 카탈로그 이름으로만 읽는다. 경로를 본문에 쓰지 않는다.
+- 환경 변수 이름은 로컬 `.env`, GHES secret, dbt `env_var()`에서 같게 쓴다.
+
+### 대응
+
+| 지금(DuckDB CLI) | dbt-duckdb |
+|---|---|
+| `_init.sql`, `_init_s3.sql` | `profiles.yml`(`extensions`, `settings`, `secrets`, `external_root`, `env_var()`) |
+| `SET VARIABLE start_day` 등 | `vars`, `{{ var() }}` |
+| `_catalog/bronze/<스키마>.sql` | `sources.yml`(`external_location`, 열과 타입) |
+| silver, gold 카탈로그 macro | `{{ ref() }}` |
+| 파일 번호(실행 순서) | `ref()` 의존 그래프 |
+| `CREATE TEMP TABLE` | CTE, 여러 모델이 쓰면 ephemeral 모델 |
+| `COPY … TO (lake_path(…))` | `config(materialized='external', …)` |
+| `90_checks.sql` | `schema.yml` 시험, `tests/` 시험 SQL |
+| 통계 `SELECT` | `run_results.json` |
+
+### 전환 순서
+
+```
+0. 준비
+   0.1 dbt-duckdb 설치. DuckDB 버전을 CLI 버전에 맞춘다
+   0.2 external + partition_by(dt) 조합을 시험한다       # dbt-duckdb issue #232. 실패하면 멈추고 대안을 정한다
+   0.3 지금 결과를 기준값으로 저장한다                   # 90_checks 결과, 표별 행 수
+1. 뼈대
+   1.1 dbt_project.yml: 모델 폴더(silver/, gold/)
+   1.2 profiles.yml   ← _init.sql, _init_s3.sql
+   1.3 vars           ← SET VARIABLE
+2. 원천
+   2.1 sources.yml    ← _catalog/bronze/<스키마>.sql
+   2.2 bronze 실행 고르기 규칙 → Jinja macro 또는 ephemeral 모델
+3. 모델 (한 번에 하나, 20 → 30 → 31)
+   3.1 .read 줄을 지운다
+   3.2 CREATE TEMP TABLE → CTE
+   3.3 getvariable() → var(), 카탈로그 이름 → source() / ref()
+   3.4 COPY → config(materialized='external', format='csv', partition_by=…)
+   3.5 dbt run --select <모델>
+   3.6 0.3 기준값과 비교한다                             # 다르면 다음 모델로 가지 않는다
+4. 시험
+   4.1 90_checks 규칙 → schema.yml 시험, tests/ 시험 SQL
+   4.2 dbt build 로 실행과 시험을 함께 돌린다
+5. 실행 환경
+   5.1 bin/run.sh: duckdb < 파일 → dbt build
+   5.2 GHES workflow: 같은 명령. run_results.json 을 job summary 로 쓴다
+   5.3 .vscode/tasks.json: dbt build --select <모델>
+6. 정리
+   6.1 옛 본문, _catalog/*.sql, _init.sql 의 대응 부분을 지운다
+   6.2 README, AGENTS.md 를 고친다
+   6.3 새 ADR: 전환 결정, 이 ADR 과 ADR 0002 에서 바뀌는 점
+```
+
+> **CAUTION:** 두 방식을 함께 유지하지 않는다. 같은 출력 경로를 두 도구가 쓰면 결과가 섞인다. 모델 하나를 옮기면 그 모델의 옛 본문은 실행 목록에서 뺀다.
+
+> **NOTE:** 위 대응과 순서는 실행해서 확인하지 않았다. dbt-duckdb 설정 이름(`external_root`, `format`)은 dbt-duckdb 문서로 확인하지 않았다.
