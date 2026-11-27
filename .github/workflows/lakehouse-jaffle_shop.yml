@@ -1,0 +1,30 @@
+# jaffle_shop Lakehouse 변환 파이프라인. 실행 로직은 _lakehouse-pipeline.yml 에 있다.
+# 새 System Type은 이 파일을 복사해 이름, system_type, env 만 바꾼다(가이드 lakehouse/docs/github-actions.md).
+name: lakehouse-jaffle_shop
+
+on:
+  workflow_dispatch:
+    inputs:
+      files:
+        description: "pipeline/jaffle_shop/ 안에서 고를 SQL 와일드카드. 예: 2*.sql(실버만)"
+        required: false
+        default: "*.sql"
+  push:                       # 임시: 기능 브랜치 시험용(가이드 8.2). main 에 머지하기 전에 지운다
+    branches: [feature/airbyte-custom-source]
+    paths: [".github/workflows/*lakehouse*", "lakehouse/pipeline/**"]
+  # 스케줄은 필요할 때 주석을 푼다. cron 은 UTC 다(아래는 매일 KST 03:00). 몇 분 늦게 돌 수 있다
+  # schedule:
+  #   - cron: "0 18 * * *"
+
+jobs:
+  run:
+    uses: ./.github/workflows/_lakehouse-pipeline.yml
+    with:
+      system_type: jaffle_shop
+      files: ${{ inputs.files }}   # 스케줄 실행에서는 비어 있고, 공통 워크플로가 *.sql 로 바꾼다
+      # KEY=VALUE 줄(따옴표 없이). 모두 주석이면 로컬 디스크(s3-local)로 돈다.
+      # 연결 정보(S3_*, PG_*)는 gh 시크릿·변수에서 오고, 여기 같은 키를 쓰면 덮는다
+      env: |
+        # DATA_ROOT=s3://local
+        # INIT_FILES=pipeline/_init/pg.sql pipeline/_init/base.sql pipeline/_init/s3.sql
+    secrets: inherit

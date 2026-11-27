@@ -8,6 +8,7 @@ S3 파일 레이크(bronze → silver → gold)와 그 위의 DuckDB SQL 파이�
 - 이름(`<tier>.<system_type>.<표>()`), 공통 카탈로그, Airbyte 브론즈 경로: `docs/adr/lakehouse/0005-airbyte-hive-path-and-layer-catalog.md`
 - macro 카탈로그를 고른 이유와 기각한 대안: `docs/adr/lakehouse/0002-pipeline-sql-catalog-macros.md`
 - DB 원천과 원천 기동: `docs/adr/lakehouse/0004-second-pipeline-mysql-employees.md`
+- GitHub Actions 정기 실행(System Type마다 호출 파일 `.github/workflows/lakehouse-<system_type>.yml`): `docs/github-actions.md`, `docs/adr/lakehouse/0006-github-actions-pipeline-per-system-type.md`
 
 ADR 0002·0004·0005의 경로(`pipelines/_shared/…`, `<파이프라인>/_init.sql`)는 결정 당시의 기록이다. 지금 구조는 이 파일을 따른다.
 

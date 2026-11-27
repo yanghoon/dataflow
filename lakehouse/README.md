@@ -200,6 +200,7 @@ S3_SECRET_KEY_ID=...
 pipeline/run.sh pipeline/jaffle_shop/*.sql
 ```
 
+- GitHub Actions(self-hosted 러너)로 수동·스케줄 실행하는 방법: [docs/github-actions.md](docs/github-actions.md).
 - 인증은 `TEMPORARY SECRET`이라 프로세스가 끝나면 사라진다. 에어갭에서는 httpfs 확장을 미리 넣어 둔다.
 - 로컬 S3 서버에서 버킷 `local`이 `s3-local/` 폴더를 가리키게 하면(예: versitygw posix의 루트 아래 `local`로 `s3-local/`을 마운트), Kestra와 Airbyte(S3 목적지)가 `s3://local`에 쓴 파일이 이 폴더에 그대로 보이고 로컬 SQL도 그대로 읽는다. 아직 연결하지 않았다.
 
