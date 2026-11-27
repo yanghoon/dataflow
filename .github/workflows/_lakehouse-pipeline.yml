@@ -58,7 +58,7 @@ jobs:
         shell: bash
         working-directory: lakehouse
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           clean: false   # 로컬 실행(s3-local) 데이터가 실행 사이에 남게 한다(가이드 4)
 
