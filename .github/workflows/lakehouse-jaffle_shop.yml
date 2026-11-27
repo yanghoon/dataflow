@@ -9,9 +9,6 @@ on:
         description: "pipeline/jaffle_shop/ 안에서 고를 SQL 와일드카드. 예: 2*.sql(실버만)"
         required: false
         default: "*.sql"
-  push:                       # 임시: 기능 브랜치 시험용(가이드 8.2). main 에 머지하기 전에 지운다
-    branches: [feature/airbyte-custom-source]
-    paths: [".github/workflows/*lakehouse*", "lakehouse/pipeline/**"]
   # 스케줄은 필요할 때 주석을 푼다. cron 은 UTC 다(아래는 매일 KST 03:00). 몇 분 늦게 돌 수 있다
   # schedule:
   #   - cron: "0 18 * * *"
